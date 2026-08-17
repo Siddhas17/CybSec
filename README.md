@@ -93,31 +93,48 @@ which should list `Ubuntu` as `Running` or `Stopped` with `VERSION 2`.
 
 ## Python environment setup (inside WSL2 Ubuntu)
 
-Once Ubuntu is installed, open it (`wsl` from PowerShell, or the Ubuntu
-Start Menu entry) and run:
+Ubuntu 24.04's default Python is 3.12, and creating an isolated environment
+the standard way (`python3 -m venv`) needs the `python3.12-venv` and
+`python3-pip` OS packages, which require `sudo` — an interactive step this
+setup can't do for you. To avoid that dependency entirely, this project
+uses **Miniconda** instead, installed into user space with no root access
+required:
 
 ```bash
-# from the project root, accessed via /mnt/e/MP inside WSL
-cd /mnt/e/MP
+# from anywhere inside WSL2 Ubuntu (not /mnt/e — keep the env on the native
+# Linux filesystem for speed; only the project code lives on /mnt/e/MP)
+curl -sSf -o /tmp/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash /tmp/miniconda.sh -b -p $HOME/miniconda3
 
-python3 --version   # confirm 3.12.x (or use python3.12 explicitly)
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip --version
+$HOME/miniconda3/bin/conda create -y -n attack-graph-ids -c conda-forge --override-channels python=3.12
+```
+
+(`--override-channels -c conda-forge` avoids Anaconda's default-channel
+Terms of Service prompt, which isn't scriptable non-interactively.)
+
+Activate it whenever you work on the project:
+
+```bash
+source $HOME/miniconda3/bin/activate attack-graph-ids
+cd /mnt/e/MP   # the project code itself still lives on the Windows drive
+python --version   # confirm 3.12.x
 ```
 
 ## Dependency installation
+
+With the `attack-graph-ids` environment activated:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-`requirements.txt` intentionally excludes PyTorch — install it separately
-once the WSL2 environment is confirmed, using the CPU or CUDA command from
-<https://pytorch.org/get-started/locally/> matched to whatever GPU (or lack
-of one) is actually available inside WSL2. Don't install a CUDA build
-blindly on a machine without a compatible NVIDIA GPU/WSL CUDA support.
+`requirements.txt` pins exact versions (not ranges) verified together on
+this Python 3.12 / WSL2 Ubuntu 24.04 setup on 2026-08-17, including a
+CPU-only PyTorch build (`--extra-index-url` line in the file) — this
+machine has no NVIDIA GPU / no CUDA passthrough in WSL2. If you're on
+different hardware with a working CUDA setup, swap the PyTorch line for the
+matching command from <https://pytorch.org/get-started/locally/> instead of
+assuming CPU.
 
 ## Project structure
 
@@ -160,7 +177,8 @@ downloaded files under `ml/datasets/raw/` before starting Phase 1.
 
 ## Environment verification
 
-Once the WSL2 Python environment and dependencies from above are in place:
+With the `attack-graph-ids` conda environment activated and dependencies
+installed:
 
 ```bash
 python scripts/verify_environment.py
@@ -169,7 +187,10 @@ python scripts/verify_environment.py
 This checks the Python version, each required library (numpy, pandas,
 scikit-learn, networkx, matplotlib, scipy, python-dotenv), PyTorch/CUDA if
 installed, and CPU count, then prints a PASS/FAIL line per check plus an
-overall result.
+overall result. Last run on this machine (2026-08-17): **PASS**, all 11
+checks — Python 3.12.13, numpy 1.26.4, pandas 2.3.3, scikit-learn 1.9.0,
+networkx 3.6.1, matplotlib 3.11.1, scipy 1.17.1, python-dotenv, torch
+2.13.0+cpu, 8 CPUs, CUDA not available (CPU-only training).
 
 ## Development roadmap
 
