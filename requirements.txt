@@ -1,0 +1,21 @@
+# Phase 0 / core ML dependencies.
+# Install inside WSL2 Ubuntu, NOT native Windows Python (see docs/architecture.md
+# and README.md — Smart App Control blocks native compiled-extension imports).
+#
+# Versions target the Phase 1 report's documented stack (Python 3.10) with
+# compatible-release pins (~=) so patch fixes are picked up automatically.
+
+numpy~=1.24
+pandas~=2.0
+scikit-learn~=1.2
+matplotlib~=3.7
+networkx~=3.1
+scipy~=1.10
+jupyter~=1.0
+python-dotenv~=1.0
+
+# --- Intentionally NOT included yet ---
+# torch (PyTorch 2.0): install separately once WSL2 Ubuntu is verified, using
+# the CPU or CUDA wheel command from https://pytorch.org/get-started/locally/
+# matched to the actual GPU (or lack thereof) inside WSL2. Do not add a blind
+# `torch` line here — the correct index URL depends on that hardware check.

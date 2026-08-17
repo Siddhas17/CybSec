@@ -1,0 +1,56 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Environment / secrets ---
+.env
+.env.local
+*.local
+
+# --- Datasets (large, obtained separately, not committed) ---
+ml/datasets/raw/*
+!ml/datasets/raw/.gitkeep
+ml/datasets/processed/*
+!ml/datasets/processed/.gitkeep
+
+# --- Trained model artifacts (large binaries; keep code, not weights) ---
+ml/models/*.pt
+ml/models/*.pth
+ml/models/*.pkl
+ml/models/*.joblib
+ml/models/*.h5
+ml/models/*.onnx
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS ---
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# --- Logs / reports generated at runtime ---
+*.log
+logs/
+docs/generated/
+
+# --- Future backend/frontend (placeholders, keep out until those phases exist) ---
+node_modules/
+dist/
+build/
+*.egg-info/
