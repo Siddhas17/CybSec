@@ -58,7 +58,15 @@ deliberately kept as separate branches that merge at risk scoring, is in
   numpy/pandas/PyTorch/scikit-learn depend on. Ubuntu is also the report's
   documented alternate OS, so this doesn't deviate from the project's
   stated stack.
-- Python 3.10 (inside WSL2 Ubuntu).
+- **Python 3.12** (inside WSL2 Ubuntu) — the report's stack was documented
+  against Python 3.10, but Ubuntu 24.04 LTS (the version `wsl --install -d
+  Ubuntu` provisions today) ships 3.12 as its system default, and getting
+  exact 3.10 would require adding the third-party `deadsnakes` PPA. 3.12
+  was verified directly (see `docs/architecture.md` for the check) to
+  install and import every required library — numpy, pandas, scipy,
+  scikit-learn, matplotlib, networkx, python-dotenv, jupyter, and PyTorch
+  (CPU build) — cleanly, so it's used instead rather than pulling in an
+  unofficial repo for a version-number match alone.
 - Git (for version control of this repository).
 
 ### Installing WSL2 Ubuntu
@@ -92,7 +100,7 @@ Start Menu entry) and run:
 # from the project root, accessed via /mnt/e/MP inside WSL
 cd /mnt/e/MP
 
-python3 --version   # confirm 3.10.x
+python3 --version   # confirm 3.12.x (or use python3.12 explicitly)
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip

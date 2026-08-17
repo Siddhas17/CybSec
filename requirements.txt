@@ -2,20 +2,28 @@
 # Install inside WSL2 Ubuntu, NOT native Windows Python (see docs/architecture.md
 # and README.md — Smart App Control blocks native compiled-extension imports).
 #
-# Versions target the Phase 1 report's documented stack (Python 3.10) with
-# compatible-release pins (~=) so patch fixes are picked up automatically.
+# The Phase 1 report's exact stack (Python 3.10, numpy 1.24, scikit-learn 1.2,
+# matplotlib 3.7, ...) predates Python 3.12 wheel support, which is what this
+# WSL2 Ubuntu 24.04 environment ships by default (see README.md Prerequisites
+# for why 3.12 was chosen over adding a third-party PPA for exact 3.10).
+# These are exact versions verified together on Python 3.12 on 2026-08-17
+# (install + import test, all passed) rather than open-ended ranges, so the
+# environment stays reproducible.
 
-numpy~=1.24
-pandas~=2.0
-scikit-learn~=1.2
-matplotlib~=3.7
-networkx~=3.1
-scipy~=1.10
-jupyter~=1.0
-python-dotenv~=1.0
+numpy==1.26.4
+pandas==2.3.3
+scikit-learn==1.9.0
+matplotlib==3.11.1
+networkx==3.6.1
+scipy==1.17.1
+jupyter==1.1.1
+python-dotenv==1.2.3
 
-# --- Intentionally NOT included yet ---
-# torch (PyTorch 2.0): install separately once WSL2 Ubuntu is verified, using
-# the CPU or CUDA wheel command from https://pytorch.org/get-started/locally/
-# matched to the actual GPU (or lack thereof) inside WSL2. Do not add a blind
-# `torch` line here — the correct index URL depends on that hardware check.
+# PyTorch (CPU build) — this machine has no NVIDIA GPU / no CUDA passthrough
+# in WSL2 (`nvidia-smi` not found, `torch.cuda.is_available()` is False), so
+# a CPU-only wheel is correct here. Verified: tensor ops and an nn.Sequential
+# forward pass both ran successfully. If you're on different hardware with a
+# working CUDA setup, replace the line below per
+# https://pytorch.org/get-started/locally/ instead of assuming CPU.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.13.0+cpu
