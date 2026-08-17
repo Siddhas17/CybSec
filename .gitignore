@@ -39,6 +39,9 @@ ml/models/*.onnx
 *.swp
 *.swo
 
+# --- Claude Code session/tooling state (not project content) ---
+.claude/
+
 # --- OS ---
 Thumbs.db
 .DS_Store
