@@ -55,21 +55,32 @@ Brunswick) — the "IDS 2017" dataset page:
 `https://www.unb.ca/cic/datasets/ids-2017.html`
 
 The page provides both raw PCAPs and the pre-extracted, labeled CICFlowMeter
-CSVs (`MachineLearningCSV` / `GeneratedLabelledFlows` folder, split across
-one file per day/time-window, covering Monday through Friday). **Exact
-filenames and folder layout should be verified against the live download
-page at acquisition time** — do not assume the names below are current;
-confirm them before writing any preprocessing code, per the project rule
-against assuming column/file structure.
+CSVs, distributed as `MachineLearningCSV.zip` (8 flow CSVs, one per
+day/time-window, Monday through Friday) and `GeneratedLabelledFlows.zip`.
+Mandatory citation if this dataset is used:
 
-Required action before Phase 1 can start:
-1. Download the labeled flow CSVs (not just raw PCAPs) from the official
-   page above.
-2. Place them under `ml/datasets/raw/` (already `.gitignore`d — these files
-   should not be committed).
-3. Confirm actual column names/row counts by opening the files directly —
-   Phase 1 preprocessing will inspect them programmatically before writing
-   any transformation logic, per project rules.
+> Sharafaldin, Iman, Arash Habibi Lashkari, and Ali A. Ghorbani. "Toward
+> Generating a New Intrusion Detection Dataset and Intrusion Traffic
+> Characterization." 4th International Conference on Information Systems
+> Security and Privacy (ICISSP), Portugal, January 2018.
 
-Phase 1 will not begin until these files are physically present in
-`ml/datasets/raw/`.
+### Acquisition status (verified 2026-08-17)
+
+The official page's "Download this dataset" link now routes through
+`cicresearch.ca`, which gates access behind a **registration form**
+(first/last name, email, organization, job title, country) — no longer a
+direct/anonymous download. At verification time the form's submit endpoint
+was returning a server error. The dataset is **not yet acquired** —
+`ml/datasets/raw/` contains only the placeholder `.gitkeep`.
+
+This requires action only the project owner can take: registering with
+personal/organizational details isn't something that should happen without
+you present, and I have no browser-automation capability to submit the
+form even if it were appropriate to. See the top-level project chat for the
+concrete options being decided (official form vs. a documented Kaggle
+mirror vs. manual browser download) before this section is finalized.
+
+Once files exist in `ml/datasets/raw/`, this document will be updated with
+the exact filenames actually acquired, their sizes, and file hashes, and
+Phase 1 inspection will proceed from there — nothing about column
+structure will be assumed in the meantime.

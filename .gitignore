@@ -42,6 +42,9 @@ ml/models/*.onnx
 # --- Claude Code session/tooling state (not project content) ---
 .claude/
 
+# --- Pytest ---
+.pytest_cache/
+
 # --- OS ---
 Thumbs.db
 .DS_Store

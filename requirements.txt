@@ -18,6 +18,7 @@ networkx==3.6.1
 scipy==1.17.1
 jupyter==1.1.1
 python-dotenv==1.2.3
+pytest==9.1.1
 
 # PyTorch (CPU build) — this machine has no NVIDIA GPU / no CUDA passthrough
 # in WSL2 (`nvidia-smi` not found, `torch.cuda.is_available()` is False), so
