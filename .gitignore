@@ -31,6 +31,10 @@ ml/datasets/processed/*
 # `python -m attack_graph.run_pipeline`, don't commit) ---
 attack_graph/output/
 
+# --- Generated risk-engine evaluation artifacts (regenerate via
+# `python -m risk_engine.run_pipeline`, don't commit) ---
+risk_engine/output/
+
 # --- Trained model artifacts (large binaries; keep code, not weights) ---
 ml/models/*.pt
 ml/models/*.pth
