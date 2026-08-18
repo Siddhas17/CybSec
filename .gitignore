@@ -38,6 +38,7 @@ ml/models/*.pkl
 ml/models/*.joblib
 ml/models/*.h5
 ml/models/*.onnx
+ml/models/artifacts/
 
 # --- IDE / editor ---
 .vscode/
