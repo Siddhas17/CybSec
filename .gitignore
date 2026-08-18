@@ -22,6 +22,8 @@ pip-wheel-metadata/
 # --- Datasets (large, obtained separately, not committed) ---
 ml/datasets/raw/*
 !ml/datasets/raw/.gitkeep
+ml/datasets/raw_labelled_flows/*
+!ml/datasets/raw_labelled_flows/.gitkeep
 ml/datasets/processed/*
 !ml/datasets/processed/.gitkeep
 
