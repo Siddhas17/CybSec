@@ -66,8 +66,9 @@ desktop.ini
 logs/
 docs/generated/
 
-# --- Future backend/frontend (placeholders, keep out until those phases exist) ---
+# --- backend/frontend (Phase 5) ---
 node_modules/
 dist/
 build/
 *.egg-info/
+frontend/.env.local

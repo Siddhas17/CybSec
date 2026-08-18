@@ -150,18 +150,23 @@ attack_graph/
   generation/           builds the graph from flow records (NetworkX)
   analysis/             graph queries/metrics (paths, centrality, etc.)
   visualization/        graph rendering
+risk_engine/             explainable 1-10 risk scoring (anomaly score + graph context)
+backend/                 FastAPI + SQLAlchemy + MySQL + WebSocket application layer
+frontend/                 React + TypeScript admin dashboard
 notebooks/               exploratory analysis
-tests/                   automated tests
-docs/                    architecture.md, dataset_selection.md, etc.
+tests/                   automated tests (ml/attack_graph/risk_engine)
+docs/                    architecture.md, dataset_selection.md, application_architecture.md, etc.
 config/                  configuration files
 scripts/                 utility scripts (e.g. verify_environment.py)
 requirements.txt
 .env.example
 ```
 
-`backend/`, `frontend/`, `sensor/`, and `database/` are intentionally not
-created yet — they belong to the future live-system layer described in
-`docs/architecture.md` §3, and will be added only when that phase starts.
+`sensor/` and a standalone `database/` folder are intentionally not
+created yet — live telemetry ingestion belongs to a future phase (see
+`docs/application_architecture.md` §10); database schema management
+lives in `backend/migrations/` (Alembic) instead of a separate
+top-level folder.
 
 ## Dataset policy
 
@@ -194,15 +199,103 @@ networkx 3.6.1, matplotlib 3.11.1, scipy 1.17.1, python-dotenv, torch
 
 ## Development roadmap
 
-| Phase | Scope |
-|---|---|
-| 0 (this phase) | WSL2/Python environment, project scaffolding, git, dataset comparison, architecture docs |
-| 1 | Data preprocessing (CICIDS2017) |
-| 2 | Attack graph generation (NetworkX) |
-| 3 | Autoencoder anomaly/zero-day detection (PyTorch) |
-| 4 | Risk scoring (anomaly score + graph context → 1-10) |
-| 5 | Visualization dashboard, alerts/reports, testing |
-| Stretch (post-core, time permitting) | FastAPI backend, MySQL, live sensor, WebSocket push, React dashboard, controlled lab-only prevention — see `docs/architecture.md` §3 |
+| Phase | Scope | Status |
+|---|---|---|
+| 0 | WSL2/Python environment, project scaffolding, git, dataset comparison, architecture docs | Done |
+| 1 | Data preprocessing (CICIDS2017) | Done |
+| 2 | Attack graph generation (NetworkX) | Done |
+| 3 | Autoencoder anomaly/zero-day detection (PyTorch) | Done |
+| 4 | Risk scoring (anomaly score + graph context -> 1-10) | Done |
+| 5 (this phase) | FastAPI + MySQL + WebSocket + React admin dashboard, offline dataset demonstration mode | Done |
+| Future | Live telemetry sensor integration, controlled lab-only prevention -- see `docs/application_architecture.md` §10 | Not started |
+
+See `docs/application_architecture.md` for the full Phase 5 design (backend/frontend architecture, MySQL schema, API surface, WebSocket flow, authentication, offline demonstration mode).
+
+## Application layer setup (backend + frontend)
+
+Full design in [`docs/application_architecture.md`](docs/application_architecture.md). Quick setup below.
+
+### MySQL
+
+MySQL 8.0 must be reachable from wherever the backend runs. On this dev
+machine MySQL runs natively on Windows while the backend runs in WSL2, so
+`MYSQL_HOST` in `.env` is the WSL2->Windows gateway IP
+(`ip route | grep default` inside WSL2), not `localhost` -- if MySQL runs
+inside WSL2 itself in your setup, `localhost` is correct instead. Create
+a dedicated least-privilege database/user rather than using root:
+
+```sql
+CREATE DATABASE attack_graph_app CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'attack_graph_app'@'<your-host-pattern>' IDENTIFIED BY '<a-strong-password>';
+GRANT ALL PRIVILEGES ON attack_graph_app.* TO 'attack_graph_app'@'<your-host-pattern>';
+FLUSH PRIVILEGES;
+```
+
+### Environment configuration
+
+Copy `.env.example` to `.env` and fill in the `MYSQL_*`/`DATABASE_URL`,
+`JWT_SECRET_KEY` (a long random string -- never reuse the example),
+`ADMIN_USERNAME`/`ADMIN_PASSWORD`, and `CORS_ORIGINS` values. Never
+commit the real `.env`.
+
+### Backend (WSL2, same conda env as the ML stack)
+
+```bash
+source $HOME/miniconda3/bin/activate attack-graph-ids
+cd /mnt/e/MP   # or wherever this repo lives
+pip install -r requirements.txt        # now includes fastapi/sqlalchemy/etc.
+
+cd backend
+alembic upgrade head                    # creates all tables
+cd ..
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+```
+
+The admin account is seeded automatically on first startup from
+`ADMIN_USERNAME`/`ADMIN_PASSWORD` in `.env`. Verify with:
+
+```bash
+curl http://127.0.0.1:8000/api/v1/health
+```
+
+### Frontend (native Windows -- no WSL2 needed, Node has no compiled-Python-extension dependency)
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the printed URL (default `http://localhost:5173`) and sign in with
+the admin credentials from `.env`.
+
+### Offline Dataset Demonstration (populate the dashboard with real data)
+
+Before the dashboard has anything to show, run the ingestion once
+(~2-3 minutes -- rebuilds the attack graph and scores a real, stratified
+sample of CICIDS2017 flows through the trained model):
+
+```bash
+TOKEN=$(curl -s -X POST http://127.0.0.1:8000/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"<admin>","password":"<password>"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+curl -s -X POST http://127.0.0.1:8000/api/v1/admin/ingest -H "Authorization: Bearer $TOKEN"
+```
+
+Or click **"Run Offline Dataset Demonstration"** on the System Health
+page in the dashboard itself. This is explicitly a demonstration mode
+(every ingested event is labeled `Offline Dataset Demonstration` in the
+UI), not live detection.
+
+### Tests
+
+```bash
+# Backend (WSL2, isolated in-memory SQLite -- no live MySQL needed)
+python -m pytest backend/tests/ -v
+
+# Frontend (native Windows)
+cd frontend && npm run test
+```
 
 ## Safety
 
