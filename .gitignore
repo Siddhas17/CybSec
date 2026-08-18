@@ -27,6 +27,10 @@ ml/datasets/raw_labelled_flows/*
 ml/datasets/processed/*
 !ml/datasets/processed/.gitkeep
 
+# --- Generated attack graph artifacts (large; regenerate via
+# `python -m attack_graph.run_pipeline`, don't commit) ---
+attack_graph/output/
+
 # --- Trained model artifacts (large binaries; keep code, not weights) ---
 ml/models/*.pt
 ml/models/*.pth
