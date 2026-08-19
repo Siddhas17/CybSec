@@ -4,8 +4,10 @@
 
 FastAPI + MySQL + WebSocket + React/TypeScript application layer around
 the validated Phase 1-4 analytical core. Offline dataset demonstration
-mode only -- no live network monitoring, no automatic prevention, no
-offensive attack-generation functionality.
+mode was the only mode as of this Phase 5 document -- a real, loopback-only
+live sensor (`docs/live_telemetry.md`) and a dry-run-only lab response
+layer (`docs/prevention.md`) were added in Phases 6-7 respectively, both
+still lab-only and neither performing offensive attack-generation.
 
 **Important evaluation caveat, preserved from Phase 4:** the risk engine's
 graph-context signals are computed from an attack graph built once from

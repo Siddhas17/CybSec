@@ -20,9 +20,15 @@ Given network flow data, this system:
 This is the **core academic deliverable**, matching the scope of the
 submitted Phase 1 report: single machine, offline datasets, detection and
 analysis only. See [`docs/architecture.md`](docs/architecture.md) for the
-full pipeline design and the documented plan for how this later extends
-into a live multi-host system with a backend API, database, and controlled
-prevention — none of which is implemented yet.
+full pipeline design.
+
+Beyond that core deliverable, this repo also includes a FastAPI/MySQL/
+React application layer (Phase 5, `docs/application_architecture.md`), a
+real but loopback-only live telemetry sensor (Phase 6,
+`docs/live_telemetry.md`), and a dry-run-only lab response/prevention
+layer (Phase 7, `docs/prevention.md`) -- all lab-only, none performing
+offensive attack-generation. A genuine multi-host lab deployment remains
+future work.
 
 ## Architecture (current scope)
 
@@ -162,11 +168,10 @@ requirements.txt
 .env.example
 ```
 
-`sensor/` and a standalone `database/` folder are intentionally not
-created yet — live telemetry ingestion belongs to a future phase (see
-`docs/application_architecture.md` §10); database schema management
-lives in `backend/migrations/` (Alembic) instead of a separate
-top-level folder.
+`sensor/` now exists (Phase 6, loopback-only live telemetry -- see
+`docs/live_telemetry.md`). A standalone `database/` folder was never
+created; database schema management lives in `backend/migrations/`
+(Alembic) instead of a separate top-level folder.
 
 ## Dataset policy
 
@@ -206,10 +211,12 @@ networkx 3.6.1, matplotlib 3.11.1, scipy 1.17.1, python-dotenv, torch
 | 2 | Attack graph generation (NetworkX) | Done |
 | 3 | Autoencoder anomaly/zero-day detection (PyTorch) | Done |
 | 4 | Risk scoring (anomaly score + graph context -> 1-10) | Done |
-| 5 (this phase) | FastAPI + MySQL + WebSocket + React admin dashboard, offline dataset demonstration mode | Done |
-| Future | Live telemetry sensor integration, controlled lab-only prevention -- see `docs/application_architecture.md` §10 | Not started |
+| 5 | FastAPI + MySQL + WebSocket + React admin dashboard, offline dataset demonstration mode | Done |
+| 6 | Live telemetry sensor, loopback-only (`docs/live_telemetry.md`) | Done |
+| 7 (this phase) | Controlled lab response, dry-run only -- real firewall blocking not achievable in this dev environment (`docs/prevention.md`) | Done |
+| Future | Multi-host lab deployment, real privileged blocking backend | Not started |
 
-See `docs/application_architecture.md` for the full Phase 5 design (backend/frontend architecture, MySQL schema, API surface, WebSocket flow, authentication, offline demonstration mode).
+See `docs/application_architecture.md`, `docs/live_telemetry.md`, and `docs/prevention.md` for the full backend/frontend architecture, MySQL schema, API surface, WebSocket flow, authentication, live sensor, and response-layer design.
 
 ## Application layer setup (backend + frontend)
 
@@ -287,10 +294,23 @@ page in the dashboard itself. This is explicitly a demonstration mode
 (every ingested event is labeled `Offline Dataset Demonstration` in the
 UI), not live detection.
 
+### Live sensor (Phase 6) and dry-run lab response (Phase 7)
+
+Both default fully off (`TELEMETRY_ENABLED=false`, `PREVENTION_ENABLED=false`
+in `.env`) and are not part of the steps above. See
+[`docs/live_telemetry.md`](docs/live_telemetry.md) §20 for the live sensor
+startup/runbook and [`docs/prevention.md`](docs/prevention.md) plus
+[`docs/live_validation.md`](docs/live_validation.md) §9 for the dry-run
+response demonstration sequence -- including why real firewall blocking
+is not achievable in this specific dev environment.
+
 ### Tests
 
 ```bash
-# Backend (WSL2, isolated in-memory SQLite -- no live MySQL needed)
+# Core ML / attack-graph / risk-engine / sensor pure-logic tests (WSL2)
+python -m pytest -v
+
+# Backend API tests (WSL2, isolated in-memory SQLite -- no live MySQL needed)
 python -m pytest backend/tests/ -v
 
 # Frontend (native Windows)
@@ -302,4 +322,5 @@ cd frontend && npm run test
 This project only targets machines/networks explicitly owned or authorized
 for testing (an isolated lab). No attack/exploitation scripts are part of
 this repository — only detection, analysis, graph generation, anomaly
-scoring, and (later, lab-only) defensive response.
+scoring, and lab-only defensive response (dry-run only in this
+environment -- see `docs/prevention.md`).
