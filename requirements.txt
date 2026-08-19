@@ -48,3 +48,13 @@ bcrypt==5.0.0
 python-multipart==0.0.32
 pydantic-settings==2.15.0
 websockets==17.0.1
+
+# Phase 6 / live sensor (sensor/) -- real packet capture inside an
+# unprivileged network namespace (see docs/live_telemetry.md section 2 for
+# why: no Npcap/tshark/tcpdump were available on this machine and there is
+# no sudo password to install/authorize them; `unshare --map-root-user
+# --net` grants CAP_NET_RAW inside a namespace this process owns instead,
+# with no host-level privilege change). Only used by sensor/collectors/
+# _capture_worker.py, a subprocess -- never imported by the rest of the
+# backend.
+scapy==2.7.0

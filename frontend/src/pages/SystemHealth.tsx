@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
-import type { HealthStatus, TestEventResult } from "../types";
+import type { HealthStatus, SensorHealth, TestEventResult } from "../types";
 
 export function SystemHealth() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
@@ -15,11 +15,51 @@ export function SystemHealth() {
   const [testResult, setTestResult] = useState<TestEventResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [sensorHealth, setSensorHealth] = useState<SensorHealth | null>(null);
+  const [sensorBusy, setSensorBusy] = useState(false);
+  const [sensorMessage, setSensorMessage] = useState<string | null>(null);
+
   function loadHealth() {
     api.health().then(setHealth);
   }
 
+  function loadSensorHealth() {
+    api.sensor.health().then(setSensorHealth).catch(() => setSensorHealth(null));
+  }
+
   useEffect(loadHealth, []);
+  useEffect(() => {
+    loadSensorHealth();
+    const interval = setInterval(loadSensorHealth, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function startSensor() {
+    setSensorBusy(true);
+    setSensorMessage(null);
+    try {
+      await api.sensor.start();
+      setSensorMessage("Live sensor started.");
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setSensorMessage(detail ?? "Failed to start the live sensor -- check backend logs.");
+    } finally {
+      setSensorBusy(false);
+      loadSensorHealth();
+    }
+  }
+
+  async function stopSensor() {
+    setSensorBusy(true);
+    setSensorMessage(null);
+    try {
+      await api.sensor.stop();
+      setSensorMessage("Live sensor stopped.");
+    } finally {
+      setSensorBusy(false);
+      loadSensorHealth();
+    }
+  }
 
   async function runIngestion() {
     setIngesting(true);
@@ -72,6 +112,62 @@ export function SystemHealth() {
           <div className="label">WebSocket</div>
           <div className="value">{wsStatus}</div>
         </div>
+      </div>
+
+      <div className="panel">
+        <div className="section-title">Live Sensor (Phase 6)</div>
+        <p className="page-subtitle">
+          Real, authorized lab telemetry captured inside an isolated network namespace, reconstructed into flows, and
+          scored through the same analytical pipeline as everything else on this dashboard -- never a second model.
+          See <code>docs/live_telemetry.md</code> for the full compatibility audit and limitations.
+        </p>
+        {!sensorHealth?.telemetry_enabled && (
+          <div className="notice-banner" style={{ marginBottom: "0.75rem" }}>
+            TELEMETRY_ENABLED=false in .env -- the sensor cannot be started until this is set to true.
+          </div>
+        )}
+        {sensorHealth && (
+          <div className="grid grid-stats" style={{ marginBottom: "0.75rem" }}>
+            <div className="stat-card">
+              <div className="label">Collector</div>
+              <div className="value">{sensorHealth.collector_status}</div>
+            </div>
+            <div className="stat-card">
+              <div className="label">Packets Received</div>
+              <div className="value">{sensorHealth.packets_received}</div>
+            </div>
+            <div className="stat-card">
+              <div className="label">Events Processed</div>
+              <div className="value">{sensorHealth.events_processed}</div>
+            </div>
+            <div className="stat-card">
+              <div className="label">Active Flows</div>
+              <div className="value">{sensorHealth.active_flows}</div>
+            </div>
+            <div className="stat-card">
+              <div className="label">LIVE_GRAPH Edges</div>
+              <div className="value">{sensorHealth.live_graph_edges}</div>
+            </div>
+            <div className="stat-card">
+              <div className="label">Errors / Rejected</div>
+              <div className="value">
+                {sensorHealth.processing_errors} / {sensorHealth.events_rejected}
+              </div>
+            </div>
+          </div>
+        )}
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <button className="primary" onClick={startSensor} disabled={sensorBusy || sensorHealth?.collector_status === "running"} style={{ width: "auto", padding: "0.5rem 1.2rem" }}>
+            Start Live Sensor
+          </button>
+          <button className="secondary" onClick={stopSensor} disabled={sensorBusy || sensorHealth?.collector_status !== "running"} style={{ width: "auto", padding: "0.5rem 1.2rem" }}>
+            Stop Live Sensor
+          </button>
+        </div>
+        {sensorMessage && <div className="notice-banner" style={{ marginTop: "0.75rem" }}>{sensorMessage}</div>}
+        {sensorHealth?.last_error && (
+          <div className="notice-banner" style={{ marginTop: "0.75rem" }}>Last error: {sensorHealth.last_error}</div>
+        )}
       </div>
 
       <div className="panel">

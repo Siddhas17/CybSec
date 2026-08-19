@@ -42,11 +42,24 @@ def get_event(event_id: int, db: Session = Depends(get_db), _current_user: User 
 
     detection = db.query(Detection).filter(Detection.event_id == event_id).first()
     risk = db.query(RiskAssessment).filter(RiskAssessment.event_id == event_id).first()
-    graph_context = get_edge_context(db, event.source_ip, event.destination_ip)
+
+    if event.source == EventSource.LIVE:
+        # The persisted OFFLINE_GRAPH (attack_graph/, built once from
+        # CICIDS2017) never scored this event -- LIVE_GRAPH did, in-memory,
+        # inside backend.app.services.live_sensor_service, and may have
+        # already evicted this edge by read time. Showing the offline
+        # graph's context here would silently misattribute it as this
+        # event's real-time context (section 8 explicitly forbids that).
+        # The risk factors below already carry whatever graph signal
+        # actually fed this event's score at scoring time.
+        graph_context = None
+    else:
+        edge_context = get_edge_context(db, event.source_ip, event.destination_ip)
+        graph_context = GraphContextOut(**edge_context.__dict__) if not edge_context.is_empty() else None
 
     return EventDetailOut(
         **EventOut.model_validate(event).model_dump(),
         detection=DetectionOut.model_validate(detection) if detection else None,
         risk_assessment=RiskAssessmentOut.model_validate(risk) if risk else None,
-        graph_context=GraphContextOut(**graph_context.__dict__) if not graph_context.is_empty() else None,
+        graph_context=graph_context,
     )

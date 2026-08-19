@@ -168,6 +168,24 @@ export interface HealthStatus {
   version: string;
 }
 
+export interface SensorHealth {
+  collector_status: "stopped" | "starting" | "running" | "error";
+  interface: string;
+  telemetry_enabled: boolean;
+  started_at: string | null;
+  last_event_at: string | null;
+  packets_received: number;
+  packets_dropped: number;
+  parse_errors: number;
+  events_processed: number;
+  events_rejected: number;
+  processing_errors: number;
+  active_flows: number;
+  live_graph_edges: number;
+  model_available: boolean;
+  last_error: string | null;
+}
+
 export interface TestEventPayload {
   source_ip: string;
   destination_ip: string;

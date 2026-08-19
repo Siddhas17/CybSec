@@ -9,6 +9,7 @@ import type {
   ModelInfo,
   RiskAssessment,
   RiskDistributionBucket,
+  SensorHealth,
   Summary,
   TestEventPayload,
   TestEventResult,
@@ -79,6 +80,12 @@ export const api = {
 
   triggerIngestion: (params?: { sample_per_category?: number; max_total?: number }) =>
     client.post("/admin/ingest", null, { params }).then((r) => r.data),
+
+  sensor: {
+    health: () => client.get<SensorHealth>("/sensor/health").then((r) => r.data),
+    start: () => client.post("/sensor/start").then((r) => r.data),
+    stop: () => client.post("/sensor/stop").then((r) => r.data),
+  },
 
   analytics: {
     summary: () => client.get<Summary>("/analytics/summary").then((r) => r.data),
