@@ -6,6 +6,7 @@ from backend.app.models.attack_graph import AttackEdge, AttackNode
 from backend.app.models.detection import Detection
 from backend.app.models.event import Event
 from backend.app.models.model_version import ModelVersion
+from backend.app.models.prevention_action import PreventionAction
 from backend.app.models.risk_assessment import RiskAssessment
 from backend.app.models.system_log import SystemLog
 from backend.app.models.user import User
@@ -19,4 +20,5 @@ __all__ = [
     "AttackEdge",
     "ModelVersion",
     "SystemLog",
+    "PreventionAction",
 ]

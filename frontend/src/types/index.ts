@@ -212,6 +212,31 @@ export interface TestEventResult {
 }
 
 export interface WebSocketMessage<T = unknown> {
-  type: "connected" | "heartbeat" | "new_threat";
+  type: "connected" | "heartbeat" | "new_threat" | "prevention_action";
   data: T;
+}
+
+// Phase 7: controlled lab response. "requested_action"/"actual_action" can
+// differ -- e.g. requested "block" but actual "rejected" because the
+// target IP failed lab-scope validation before any adapter call was made.
+export type RequestedAction = "alert" | "dry_run" | "block" | "unblock";
+export type ActualAction = "alerted" | "would_block" | "blocked" | "unblocked" | "rejected" | "failed";
+
+export interface PreventionAction {
+  id: number;
+  event_id: number | null;
+  detection_id: number | null;
+  risk_assessment_id: number | null;
+  user_id: number | null;
+  source_ip: string;
+  risk_score: number | null;
+  risk_level: RiskLevel | null;
+  requested_action: RequestedAction;
+  actual_action: ActualAction;
+  dry_run: boolean;
+  success: boolean;
+  reason: string;
+  adapter: string;
+  target_scope: string | null;
+  created_at: string;
 }

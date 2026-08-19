@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: "/attack-graph", label: "Attack Graph" },
   { to: "/analytics", label: "Analytics" },
   { to: "/model-info", label: "Model Information" },
+  { to: "/prevention", label: "Prevention & Response" },
   { to: "/system-health", label: "System Health" },
 ];
 

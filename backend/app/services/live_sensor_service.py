@@ -28,6 +28,7 @@ from backend.app.models.event import Event, EventSource
 from backend.app.models.risk_assessment import RiskAssessment
 from backend.app.services.analytical_pipeline import AnalyticalPipeline, DetectionResult, GraphContext, TelemetryEvent
 from backend.app.services.model_registry import ensure_all_model_versions, get_predictor, get_risk_config
+from backend.app.services.prevention import response_service
 from backend.app.websocket.manager import manager
 from sensor.collectors.netns_loopback import NetnsLoopbackCollector
 from sensor.config import sensor_config
@@ -194,6 +195,7 @@ class LiveSensorService:
             result = pipeline.score(telemetry, graph_context)
             event = self._persist(telemetry, result)
             self._broadcast(event, result)
+            self._respond(event, result)
 
             is_flagged = result.is_anomaly or result.risk_score >= HIGH_RISK_FLAG_THRESHOLD
             self._live_graph.record_flow(
@@ -260,6 +262,24 @@ class LiveSensorService:
         except Exception:
             db.rollback()
             raise
+        finally:
+            db.close()
+
+    def _respond(self, event: Event, result: DetectionResult) -> None:
+        """Phase 7 (section 1's validation-strategy diagram: detection ->
+        response). A separate session and its own try/except -- response
+        evaluation failing must never retroactively affect the
+        already-committed, already-broadcast detection above it (the
+        response layer is independent of the detection model, section 2)."""
+        db: Session = SessionLocal()
+        try:
+            detection = db.query(Detection).filter(Detection.event_id == event.id).first()
+            risk_assessment = db.query(RiskAssessment).filter(RiskAssessment.event_id == event.id).first()
+            if risk_assessment is None:
+                return
+            response_service.evaluate_and_respond(db, event=event, detection=detection, risk_assessment=risk_assessment, loop=self._loop)
+        except Exception as exc:  # response evaluation must never affect detection accounting (section 13)
+            logger.warning("live sensor: response evaluation failed for event %s: %s", event.id, exc)
         finally:
             db.close()
 

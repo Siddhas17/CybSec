@@ -10,6 +10,7 @@ import { AttackGraph } from "./pages/AttackGraph";
 import { Analytics } from "./pages/Analytics";
 import { ModelInfo } from "./pages/ModelInfo";
 import { SystemHealth } from "./pages/SystemHealth";
+import { Prevention } from "./pages/Prevention";
 
 function Protected({ children }: { children: React.ReactNode }) {
   return (
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/attack-graph" element={<Protected><AttackGraph /></Protected>} />
         <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
         <Route path="/model-info" element={<Protected><ModelInfo /></Protected>} />
+        <Route path="/prevention" element={<Protected><Prevention /></Protected>} />
         <Route path="/system-health" element={<Protected><SystemHealth /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

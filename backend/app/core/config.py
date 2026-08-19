@@ -42,6 +42,31 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    # Phase 7: controlled lab response (backend.app.services.prevention).
+    # Master switch, independent of dry_run below -- mirrors sensor/config.py's
+    # TELEMETRY_ENABLED "defense in depth" pattern exactly: with this false,
+    # the response layer does not evaluate anything, real or simulated.
+    prevention_enabled: bool = False
+    # With prevention_enabled=true, dry_run still defaults true -- an
+    # operator must flip BOTH before any real adapter.block() call is ever
+    # attempted. See docs/prevention.md "Safety defaults".
+    prevention_dry_run: bool = True
+
+    # Response policy thresholds on the existing 1-10 risk_engine scale
+    # (risk_engine.config.RISK_LEVELS) -- not claimed to be objectively
+    # correct, see docs/prevention.md "Response thresholds" for the
+    # documented rationale. Configurable, not hard-coded into the policy.
+    response_alert_threshold: float = 7.0
+    response_block_threshold: float = 9.0
+
+    # Lab-only scope (section 6): comma-separated CIDRs a response action's
+    # target IP must fall inside. Never hard-coded into validation logic.
+    lab_network_cidrs: str = "192.168.56.0/24"
+    # Loopback is rejected by default even when the sensor is loopback-only
+    # (docs/live_telemetry.md section 1) -- must be explicitly opted into,
+    # never implied by LAB_NETWORK_CIDRS membership.
+    lab_allow_loopback_target: bool = False
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

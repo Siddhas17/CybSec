@@ -7,6 +7,7 @@ import type {
   HealthStatus,
   HistogramBucket,
   ModelInfo,
+  PreventionAction,
   RiskAssessment,
   RiskDistributionBucket,
   SensorHealth,
@@ -85,6 +86,16 @@ export const api = {
     health: () => client.get<SensorHealth>("/sensor/health").then((r) => r.data),
     start: () => client.post("/sensor/start").then((r) => r.data),
     stop: () => client.post("/sensor/stop").then((r) => r.data),
+  },
+
+  prevention: {
+    listActions: (params?: { limit?: number; offset?: number }) =>
+      client.get<PreventionAction[]>("/prevention/actions", { params }).then((r) => r.data),
+    dryRun: (source_ip: string, reason?: string) =>
+      client.post<PreventionAction>("/prevention/dry-run", { source_ip, reason }).then((r) => r.data),
+    block: (source_ip: string, reason?: string) =>
+      client.post<PreventionAction>("/prevention/block", { source_ip, reason }).then((r) => r.data),
+    unblock: (source_ip: string) => client.post<PreventionAction>("/prevention/unblock", { source_ip }).then((r) => r.data),
   },
 
   analytics: {
