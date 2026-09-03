@@ -4,6 +4,7 @@ import { api, clearToken, getToken } from "../services/api";
 interface AuthContextValue {
   isAuthenticated: boolean;
   username: string | null;
+  isAdmin: boolean;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -13,6 +14,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [username, setUsername] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +25,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     api
       .me()
-      .then((data) => setUsername(data.username))
+      .then((data) => {
+        setUsername(data.username);
+        setIsAdmin(data.is_admin);
+      })
       .catch(() => clearToken())
       .finally(() => setLoading(false));
   }, []);
@@ -32,15 +37,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api.login(user, password);
     const data = await api.me();
     setUsername(data.username);
+    setIsAdmin(data.is_admin);
   }
 
   function logout() {
     clearToken();
     setUsername(null);
+    setIsAdmin(false);
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!username, username, loading, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: !!username, username, isAdmin, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

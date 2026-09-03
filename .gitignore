@@ -72,3 +72,6 @@ dist/
 build/
 *.egg-info/
 frontend/.env.local
+
+# --- Generated security report PDFs (regenerate via POST /reports/generate, don't commit) ---
+backend/storage/

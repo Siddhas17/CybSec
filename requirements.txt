@@ -19,6 +19,7 @@ scipy==1.17.1
 jupyter==1.1.1
 python-dotenv==1.2.3
 pytest==9.1.1
+joblib==1.5.3  # transitive scikit-learn dep, pinned explicitly since ml/training/train_knn.py imports it directly
 
 # PyTorch (CPU build) — this machine has no NVIDIA GPU / no CUDA passthrough
 # in WSL2 (`nvidia-smi` not found, `torch.cuda.is_available()` is False), so
@@ -58,3 +59,8 @@ websockets==17.0.1
 # _capture_worker.py, a subprocess -- never imported by the rest of the
 # backend.
 scapy==2.7.0
+
+# Security report generation (PDF) -- pure-Python, no native compiled
+# extensions, so it works the same in the WSL2 conda env as everything else
+# here. Installed and import-verified on 2026-09-03.
+reportlab==5.0.1

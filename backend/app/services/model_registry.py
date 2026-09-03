@@ -19,16 +19,27 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import settings
 from backend.app.models.model_version import ModelVersion
 from ml.models.inference import AutoencoderPredictor
+from ml.models.knn_inference import KNNPredictor
 from risk_engine.config import RiskEngineConfig
 
 PREPROCESSING_VERSION = "cicids2017-67feature-v1"  # ml/datasets/processed/feature_names.json contract
 AUTOENCODER_VERSION = "autoencoder-v1"  # ml/models/artifacts/autoencoder/
 ATTACK_GRAPH_VERSION = "attack-graph-v1"  # attack_graph/ output
+KNN_VERSION = "knn-v1"  # ml/models/artifacts/knn/ -- offline evaluation only, see get_knn_predictor()
 
 
 @lru_cache(maxsize=1)
 def get_predictor() -> AutoencoderPredictor:
     return AutoencoderPredictor.load(settings.model_path_absolute)
+
+
+@lru_cache(maxsize=1)
+def get_knn_predictor() -> KNNPredictor:
+    """KNN is an offline-evaluation-only model (Model Evaluation / Model
+    Comparison pages) -- deliberately NOT called from ensure_all_model_versions()
+    or any live per-event scoring path (ingestion.py, live_sensor_service.py,
+    test_events.py), so an untrained KNN never breaks event ingestion."""
+    return KNNPredictor.load(settings.knn_model_path_absolute)
 
 
 @lru_cache(maxsize=1)

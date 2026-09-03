@@ -2,14 +2,21 @@ import axios, { type AxiosInstance } from "axios";
 import type {
   AttackGraphResponse,
   AttacksByType,
+  AutoencoderMetrics,
+  DatasetStats,
   EventDetail,
   EventOut,
   HealthStatus,
   HistogramBucket,
+  KnnMetrics,
+  LiveVsOfflineStats,
+  ModelComparison,
   ModelInfo,
+  ModelStatus,
   PreventionAction,
   RiskAssessment,
   RiskDistributionBucket,
+  SecurityReport,
   SensorHealth,
   Summary,
   TestEventPayload,
@@ -17,6 +24,7 @@ import type {
   ThreatRow,
   TimelinePoint,
   TopNode,
+  TrainingRun,
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -108,6 +116,28 @@ export const api = {
     anomalyScoreDistribution: () => client.get<HistogramBucket[]>("/analytics/anomaly-score-distribution").then((r) => r.data),
     riskScoreDistribution: () => client.get<HistogramBucket[]>("/analytics/risk-score-distribution").then((r) => r.data),
     modelInfo: () => client.get<ModelInfo>("/analytics/model-info").then((r) => r.data),
+  },
+
+  modelEval: {
+    autoencoderMetrics: () => client.get<AutoencoderMetrics>("/model-eval/autoencoder/metrics").then((r) => r.data),
+    knnMetrics: () => client.get<KnnMetrics>("/model-eval/knn/metrics").then((r) => r.data),
+    comparison: () => client.get<ModelComparison>("/model-eval/comparison").then((r) => r.data),
+    status: () => client.get<ModelStatus>("/model-eval/status").then((r) => r.data),
+    liveVsOffline: () => client.get<LiveVsOfflineStats>("/model-eval/live-vs-offline").then((r) => r.data),
+    datasetStats: () => client.get<DatasetStats>("/model-eval/dataset-stats").then((r) => r.data),
+    trainingHistory: (component?: string) =>
+      client.get<TrainingRun[]>("/model-eval/training-history", { params: component ? { component } : undefined }).then((r) => r.data),
+    trainingRunDetail: (id: number) => client.get<TrainingRun>(`/model-eval/training-history/${id}`).then((r) => r.data),
+    syncTrainingHistory: () => client.post<TrainingRun[]>("/model-eval/training-history/sync").then((r) => r.data),
+  },
+
+  reports: {
+    generate: () => client.post<SecurityReport>("/reports/generate").then((r) => r.data),
+    list: () => client.get<SecurityReport[]>("/reports").then((r) => r.data),
+    get: (id: number) => client.get<SecurityReport>(`/reports/${id}`).then((r) => r.data),
+    pdfUrl: (id: number, disposition: "attachment" | "inline" = "attachment") => `/reports/${id}/pdf?disposition=${disposition}`,
+    exportCsvUrl: (kind: "events" | "alerts" | "anomalies" | "risk-assessments" | "prevention-actions" | "model-metrics") =>
+      `/reports/export/${kind}.csv`,
   },
 };
 

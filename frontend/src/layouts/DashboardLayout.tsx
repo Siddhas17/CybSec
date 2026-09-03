@@ -8,13 +8,23 @@ const NAV_ITEMS = [
   { to: "/threats", label: "Live Threats" },
   { to: "/attack-graph", label: "Attack Graph" },
   { to: "/analytics", label: "Analytics" },
+  { to: "/victims", label: "Victims" },
   { to: "/model-info", label: "Model Information" },
   { to: "/prevention", label: "Prevention & Response" },
   { to: "/system-health", label: "System Health" },
 ];
 
+// Admin-only: each of these calls a require_admin-gated backend endpoint
+// (see backend/app/api/deps.require_admin) -- gating the nav entry here is
+// cosmetic, the real enforcement is server-side and in AdminRoute.
+const ADMIN_NAV_ITEMS = [
+  { to: "/datasets", label: "Datasets" },
+  { to: "/model-evaluation", label: "Model Evaluation" },
+  { to: "/reports", label: "Reports" },
+];
+
 export function DashboardLayout({ children }: { children: ReactNode }) {
-  const { username, logout } = useAuth();
+  const { username, isAdmin, logout } = useAuth();
   const { status } = useWebSocket();
 
   return (
@@ -28,6 +38,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === "/"} className={({ isActive }) => (isActive ? "active" : "")}>
+              {item.label}
+            </NavLink>
+          ))}
+          {isAdmin && ADMIN_NAV_ITEMS.map((item) => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "active" : "")}>
               {item.label}
             </NavLink>
           ))}

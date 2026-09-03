@@ -38,7 +38,11 @@ class Settings(BaseSettings):
 
     # Analytical-core artifact paths (relative to PROJECT_ROOT unless absolute)
     model_path: str = "ml/models/artifacts/autoencoder"
+    knn_model_path: str = "ml/models/artifacts/knn"
     risk_config_path: str = "risk_engine/output/config.json"
+
+    # Generated security-report PDFs (gitignored, regenerated via POST /reports/generate)
+    reports_output_dir: str = "backend/storage/reports"
 
     log_level: str = "INFO"
 
@@ -74,6 +78,16 @@ class Settings(BaseSettings):
     @property
     def model_path_absolute(self) -> Path:
         p = Path(self.model_path)
+        return p if p.is_absolute() else PROJECT_ROOT / p
+
+    @property
+    def knn_model_path_absolute(self) -> Path:
+        p = Path(self.knn_model_path)
+        return p if p.is_absolute() else PROJECT_ROOT / p
+
+    @property
+    def reports_output_dir_absolute(self) -> Path:
+        p = Path(self.reports_output_dir)
         return p if p.is_absolute() else PROJECT_ROOT / p
 
     @property

@@ -8,7 +8,9 @@ from backend.app.models.event import Event
 from backend.app.models.model_version import ModelVersion
 from backend.app.models.prevention_action import PreventionAction
 from backend.app.models.risk_assessment import RiskAssessment
+from backend.app.models.security_report import SecurityReport
 from backend.app.models.system_log import SystemLog
+from backend.app.models.training_run import TrainingRun
 from backend.app.models.user import User
 
 __all__ = [
@@ -21,4 +23,6 @@ __all__ = [
     "ModelVersion",
     "SystemLog",
     "PreventionAction",
+    "TrainingRun",
+    "SecurityReport",
 ]

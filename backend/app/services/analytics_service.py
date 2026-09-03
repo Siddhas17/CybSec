@@ -4,7 +4,7 @@ raw CICIDS2017 CSVs at request time (section 15)."""
 
 from __future__ import annotations
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from backend.app.models.attack_graph import AttackEdge
@@ -49,11 +49,18 @@ def get_risk_distribution(db: Session) -> list[dict]:
 
 
 def get_timeline(db: Session) -> list[dict]:
-    """Events per hour bucket. MySQL DATE_FORMAT for portable hour
-    truncation."""
-    bucket = func.date_format(Event.timestamp, "%Y-%m-%d %H:00:00")
+    """Events per hour bucket. Uses MySQL's DATE_FORMAT/IF in production;
+    falls back to SQLite's strftime/CASE for the in-memory test database
+    (backend/tests/conftest.py) -- production (MySQL) behavior is
+    unchanged, this only makes the query also run under the test suite,
+    which report_service.generate_report's tests exercise directly."""
+    if db.bind.dialect.name == "sqlite":
+        bucket = func.strftime("%Y-%m-%d %H:00:00", Event.timestamp)
+    else:
+        bucket = func.date_format(Event.timestamp, "%Y-%m-%d %H:00:00")
+    attack_count = func.sum(case((Event.traffic_class == "ATTACK", 1), else_=0))
     rows = (
-        db.query(bucket.label("bucket"), func.count(Event.id), func.sum(func.if_(Event.traffic_class == "ATTACK", 1, 0)))
+        db.query(bucket.label("bucket"), func.count(Event.id), attack_count)
         .group_by("bucket")
         .order_by("bucket")
         .all()

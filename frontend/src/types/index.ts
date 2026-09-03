@@ -240,3 +240,168 @@ export interface PreventionAction {
   target_scope: string | null;
   created_at: string;
 }
+
+// Model Evaluation (admin-only). Backend endpoints return free-form dicts
+// whose shape depends on `available` -- when false, only `reason` is set.
+
+export interface ConfusionMatrix {
+  tp: number | null;
+  tn: number | null;
+  fp: number | null;
+  fn: number | null;
+}
+
+export interface ClassDistribution {
+  benign_count: number;
+  attack_count: number;
+  total_count: number;
+  benign_pct: number;
+  attack_pct: number;
+}
+
+export interface AutoencoderMetrics {
+  available: boolean;
+  reason?: string;
+  evaluation_label?: string;
+  positive_class_definition?: string;
+  threshold?: number;
+  threshold_strategy?: string;
+  confusion_matrix?: ConfusionMatrix;
+  precision?: number;
+  recall?: number;
+  f1?: number;
+  roc_auc?: number;
+  pr_auc?: number;
+  false_positive_rate?: number;
+  mean_reconstruction_error_benign?: number;
+  median_reconstruction_error_benign?: number;
+  mean_reconstruction_error_attack?: number;
+  median_reconstruction_error_attack?: number;
+  normal_samples?: number;
+  anomalous_samples?: number;
+  architecture?: { dims: number[]; activation: string; dropout: number };
+  trained_at?: string | null;
+  training_seconds?: number;
+  train_rows?: number;
+  val_rows?: number;
+}
+
+export interface KnnMetrics {
+  available: boolean;
+  reason?: string;
+  evaluation_label?: string;
+  positive_class_definition?: string;
+  k?: number;
+  weights?: string;
+  confusion_matrix?: ConfusionMatrix;
+  accuracy?: number;
+  primary_averaging_method?: string;
+  note_on_averaging?: string;
+  precision_weighted?: number;
+  recall_weighted?: number;
+  f1_weighted?: number;
+  precision_macro?: number;
+  recall_macro?: number;
+  f1_macro?: number;
+  roc_auc?: number;
+  pr_auc?: number;
+  training_time_seconds?: number;
+  inference_time_seconds?: number;
+  inference_time_per_sample_ms?: number;
+  feature_count?: number;
+  train_class_distribution?: ClassDistribution;
+  test_class_distribution?: ClassDistribution;
+  train_rows?: number;
+  test_rows?: number;
+  trained_at?: string | null;
+}
+
+export interface ModelComparison {
+  autoencoder: AutoencoderMetrics;
+  knn: KnnMetrics;
+  comparability_note: string;
+}
+
+export interface ModelValidationCheck {
+  name: string;
+  passed: boolean;
+  detail: string;
+}
+
+export interface ModelValidationResult {
+  component: string;
+  valid: boolean;
+  checks: ModelValidationCheck[];
+}
+
+export interface ModelStatus {
+  autoencoder: ModelValidationResult;
+  knn: ModelValidationResult;
+}
+
+export interface LiveVsOfflineStats {
+  offline: {
+    label: string;
+    autoencoder: AutoencoderMetrics;
+    knn: KnnMetrics;
+  };
+  live: {
+    label: string;
+    total_live_events: number;
+    detected_anomalies: number;
+    alerts: number;
+    threats_prevented_or_would_block: number;
+    average_risk_score: number | null;
+    live_accuracy_note: string;
+  };
+}
+
+export interface DatasetStats {
+  available: boolean;
+  reason?: string;
+  files_loaded?: string[];
+  rows_before_dedup?: number;
+  exact_duplicate_rows?: number;
+  rows_after_dedup?: number;
+  rows_after_inf_nan_handling?: number;
+  label_distribution_before?: Record<string, number>;
+  label_distribution_after?: Record<string, number>;
+  split_sizes?: Record<string, number>;
+  split_label_distribution?: Record<string, Record<string, number>>;
+  raw_inspection_available?: boolean;
+}
+
+export interface SecurityReport {
+  id: number;
+  title: string;
+  generated_by_user_id: number | null;
+  generation_status: "complete" | "failed";
+  error_message: string | null;
+  file_path: string | null;
+  file_size_bytes: number | null;
+  report_period_start: string | null;
+  report_period_end: string | null;
+  summary_stats: Record<string, unknown> | null;
+  model_version_snapshot: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface TrainingRun {
+  id: number;
+  component: string;
+  run_id: string;
+  model_version_id: number | null;
+  artifact_dir: string;
+  content_hash: string;
+  trained_at: string | null;
+  training_duration_seconds: number | null;
+  feature_count: number | null;
+  dataset_info: Record<string, unknown>;
+  hyperparameters: Record<string, unknown>;
+  preprocessing_version: string | null;
+  threshold: number | null;
+  metrics: Record<string, number | null>;
+  confusion_matrix: ConfusionMatrix;
+  class_distribution: ClassDistribution | null;
+  created_at: string;
+}

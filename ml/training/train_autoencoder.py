@@ -33,7 +33,9 @@ import random
 import shutil
 import sys
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -314,6 +316,9 @@ def main() -> None:
     for key, result in leakage_report.items():
         print(f"  {key}: passed={result['passed']}")
 
+    run_id = uuid.uuid4().hex
+    trained_at = datetime.now(UTC).isoformat()
+
     (ARTIFACT_DIR / "config.json").write_text(
         json.dumps(
             {
@@ -321,6 +326,8 @@ def main() -> None:
                 "python_version": sys.version,
                 "torch_version": torch.__version__,
                 "device": str(device),
+                "run_id": run_id,
+                "trained_at": trained_at,
             },
             indent=2,
         ),
@@ -332,6 +339,8 @@ def main() -> None:
     (ARTIFACT_DIR / "training_report.json").write_text(
         json.dumps(
             {
+                "run_id": run_id,
+                "trained_at": trained_at,
                 "train_rows": int(len(X_train)),
                 "val_rows": int(len(X_val)),
                 "benign_training_set": benign_report,
