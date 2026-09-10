@@ -4,3 +4,8 @@
 psutil==7.2.2
 httpx==0.28.1
 python-dotenv==1.2.3
+
+# capture.py (Phase 1 capture-only validation) -- requires Npcap
+# (https://npcap.com) installed separately on Windows; verified working
+# with Scapy 2.7.0, 2026-09-10.
+scapy==2.7.0
