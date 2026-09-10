@@ -133,3 +133,95 @@ def test_find_wifi_interface_raises_when_no_interfaces_at_all():
 def test_capture_packets_rejects_non_positive_duration():
     with pytest.raises(ValueError):
         capture.capture_packets(duration_seconds=0)
+
+
+# --- extended header metadata (CICIDS2017 feature prep) ----------------------
+
+
+def test_tcp_packet_includes_full_header_and_flag_metadata():
+    packet = IP(src="192.168.1.6", dst="93.184.216.34") / TCP(sport=51820, dport=443, flags="PA", window=64240) / b"hello"
+
+    meta = capture.extract_packet_metadata(packet)
+
+    assert meta is not None
+    assert meta.ip_header_length == 20  # no IP options
+    assert meta.transport_header_length == 20  # no TCP options
+    assert meta.tcp_flags == "PA"
+    assert meta.tcp_window == 64240
+    assert meta.tcp_payload_length == len(b"hello")
+
+
+def test_tcp_flags_reflect_multiple_set_flags():
+    packet = IP(src="192.168.1.6", dst="93.184.216.34") / TCP(sport=51820, dport=443, flags="SA")
+
+    meta = capture.extract_packet_metadata(packet)
+
+    assert meta.tcp_flags == "SA"
+
+
+def test_tcp_flags_empty_string_when_no_flags_set():
+    packet = IP(src="192.168.1.6", dst="93.184.216.34") / TCP(sport=51820, dport=443, flags=0)
+
+    meta = capture.extract_packet_metadata(packet)
+
+    assert meta.tcp_flags == ""
+
+
+def test_tcp_packet_with_no_payload_has_zero_payload_length():
+    packet = IP(src="192.168.1.6", dst="93.184.216.34") / TCP(sport=51820, dport=443, flags="S")
+
+    meta = capture.extract_packet_metadata(packet)
+
+    assert meta.tcp_payload_length == 0
+
+
+def test_udp_packet_reports_fixed_header_length_and_payload_length():
+    packet = IP(src="192.168.1.6", dst="8.8.8.8") / UDP(sport=53000, dport=53) / b"udp-data"
+
+    meta = capture.extract_packet_metadata(packet)
+
+    assert meta is not None
+    assert meta.ip_header_length == 20
+    assert meta.transport_header_length == 8  # UDP header is always 8 bytes
+    assert meta.tcp_payload_length == len(b"udp-data")
+
+
+def test_udp_packet_has_no_tcp_specific_fields():
+    packet = IP(src="192.168.1.6", dst="8.8.8.8") / UDP(sport=53000, dport=53)
+
+    meta = capture.extract_packet_metadata(packet)
+
+    assert meta.tcp_flags is None
+    assert meta.tcp_window is None
+
+
+def test_icmp_packet_has_ip_header_length_but_no_transport_or_tcp_fields():
+    packet = IP(src="192.168.1.6", dst="1.1.1.1") / ICMP()
+
+    meta = capture.extract_packet_metadata(packet)
+
+    assert meta is not None
+    assert meta.ip_header_length == 20
+    assert meta.transport_header_length is None
+    assert meta.tcp_flags is None
+    assert meta.tcp_window is None
+    assert meta.tcp_payload_length is None
+    assert meta.source_port is None
+    assert meta.destination_port is None
+
+
+def test_extract_metadata_handles_broken_layer_access_without_raising():
+    class _BrokenIndexing:
+        def haslayer(self, layer):
+            return layer is IP
+
+        def __getitem__(self, layer):
+            raise RuntimeError("boom")
+
+    assert capture.extract_packet_metadata(_BrokenIndexing()) is None
+
+
+def test_extract_metadata_still_works_for_non_ip_packet_with_new_fields_absent():
+    packet = Ether() / ARP()
+
+    assert capture.extract_packet_metadata(packet) is None

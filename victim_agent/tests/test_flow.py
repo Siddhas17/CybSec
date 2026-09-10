@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 from datetime import datetime, timedelta, UTC
 
 import pytest
@@ -21,6 +22,44 @@ def _pkt(source_ip, source_port, destination_ip, destination_port, protocol, len
         "protocol": protocol,
         "length": length,
     }
+
+
+def _tcp_pkt(source_ip, source_port, destination_ip, destination_port, length, timestamp, flags, window, header_len=20, payload_len=0):
+    d = _pkt(source_ip, source_port, destination_ip, destination_port, "TCP", length=length, timestamp=timestamp)
+    d.update(tcp_flags=flags, tcp_window=window, transport_header_length=header_len, tcp_payload_length=payload_len)
+    return d
+
+
+# The exact 67 CICIDS2017 feature names/order this project's trained
+# autoencoder/KNN require (ml/models/artifacts/autoencoder/feature_names.json),
+# copied independently here (not imported from flow.py) so this test can
+# actually catch flow.CICIDS_FEATURE_NAMES drifting out of sync.
+EXPECTED_CICIDS_FEATURE_NAMES = [
+    "Destination Port", "Flow Duration", "Total Fwd Packets", "Total Backward Packets",
+    "Total Length of Fwd Packets", "Total Length of Bwd Packets",
+    "Fwd Packet Length Max", "Fwd Packet Length Min", "Fwd Packet Length Mean", "Fwd Packet Length Std",
+    "Bwd Packet Length Max", "Bwd Packet Length Min", "Bwd Packet Length Mean", "Bwd Packet Length Std",
+    "Flow Bytes/s", "Flow Packets/s",
+    "Flow IAT Mean", "Flow IAT Std", "Flow IAT Max", "Flow IAT Min",
+    "Fwd IAT Total", "Fwd IAT Mean", "Fwd IAT Std", "Fwd IAT Max", "Fwd IAT Min",
+    "Bwd IAT Total", "Bwd IAT Mean", "Bwd IAT Std", "Bwd IAT Max", "Bwd IAT Min",
+    "Fwd PSH Flags", "Fwd URG Flags", "Fwd Header Length", "Bwd Header Length",
+    "Fwd Packets/s", "Bwd Packets/s",
+    "Min Packet Length", "Max Packet Length", "Packet Length Mean", "Packet Length Std", "Packet Length Variance",
+    "FIN Flag Count", "SYN Flag Count", "RST Flag Count", "PSH Flag Count", "ACK Flag Count",
+    "URG Flag Count", "CWE Flag Count", "ECE Flag Count",
+    "Down/Up Ratio", "Average Packet Size", "Avg Fwd Segment Size", "Avg Bwd Segment Size",
+    "Subflow Fwd Bytes", "Subflow Bwd Bytes",
+    "Init_Win_bytes_forward", "Init_Win_bytes_backward", "act_data_pkt_fwd", "min_seg_size_forward",
+    "Active Mean", "Active Std", "Active Max", "Active Min",
+    "Idle Mean", "Idle Std", "Idle Max", "Idle Min",
+]
+
+
+def _assert_no_nan_or_inf(features: dict[str, float]) -> None:
+    for name, value in features.items():
+        assert not math.isnan(value), f"{name} is NaN"
+        assert not math.isinf(value), f"{name} is infinite"
 
 
 # --- make_flow_key -------------------------------------------------------
@@ -207,3 +246,261 @@ def test_consumes_icmp_metadata_from_capture_module():
     assert result is not None
     assert result.protocol == "ICMP"
     assert result.source_port is None
+
+
+# --- to_cicids_features() ----------------------------------------------------
+#
+# Fixture: a 4-packet TCP flow with 2s gaps between every consecutive
+# packet (T0, T0+2s, T0+4s, T0+6s), alternating fwd/bwd/fwd/bwd, with
+# lengths chosen so every statistic is an exact, hand-checkable number
+# (population std of [100, 300] is exactly 100.0, etc.) rather than a
+# repeating decimal that would need pytest.approx for every assertion.
+
+
+def _tcp_flow_fixture() -> flow.Flow:
+    packets = [
+        _tcp_pkt("192.168.1.6", 53386, "20.184.175.13", 443, length=100, timestamp=T0, flags="S", window=64240, header_len=20, payload_len=0),
+        _tcp_pkt("20.184.175.13", 443, "192.168.1.6", 53386, length=100, timestamp=T0 + timedelta(seconds=2), flags="SA", window=65535, header_len=20, payload_len=0),
+        _tcp_pkt("192.168.1.6", 53386, "20.184.175.13", 443, length=300, timestamp=T0 + timedelta(seconds=4), flags="PA", window=64240, header_len=20, payload_len=260),
+        _tcp_pkt("20.184.175.13", 443, "192.168.1.6", 53386, length=300, timestamp=T0 + timedelta(seconds=6), flags="A", window=65535, header_len=20, payload_len=260),
+    ]
+    [flow_record] = flow.reconstruct_flows(packets)
+    return flow_record
+
+
+def test_cicids_features_exact_names_and_count():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    assert len(features) == 67
+    assert set(features.keys()) == set(EXPECTED_CICIDS_FEATURE_NAMES)
+
+
+def test_cicids_features_exact_order():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    assert list(features.keys()) == EXPECTED_CICIDS_FEATURE_NAMES
+    assert list(flow.CICIDS_FEATURE_NAMES) == EXPECTED_CICIDS_FEATURE_NAMES
+
+
+def test_cicids_features_forward_and_backward_packet_counts():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    assert features["Total Fwd Packets"] == 2.0
+    assert features["Total Backward Packets"] == 2.0
+    assert features["Total Length of Fwd Packets"] == 400.0
+    assert features["Total Length of Bwd Packets"] == 400.0
+
+
+def test_cicids_features_packet_length_statistics():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    assert features["Fwd Packet Length Max"] == 300.0
+    assert features["Fwd Packet Length Min"] == 100.0
+    assert features["Fwd Packet Length Mean"] == 200.0
+    assert features["Fwd Packet Length Std"] == 100.0
+    assert features["Bwd Packet Length Max"] == 300.0
+    assert features["Bwd Packet Length Min"] == 100.0
+    assert features["Bwd Packet Length Mean"] == 200.0
+    assert features["Bwd Packet Length Std"] == 100.0
+    assert features["Min Packet Length"] == 100.0
+    assert features["Max Packet Length"] == 300.0
+    assert features["Packet Length Mean"] == 200.0
+    assert features["Packet Length Std"] == 100.0
+    assert features["Packet Length Variance"] == 10000.0
+
+
+def test_cicids_features_flow_duration_in_microseconds():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    assert features["Flow Duration"] == 6_000_000.0  # T0 -> T0+6s
+
+
+def test_cicids_features_flow_iat_statistics():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    # 3 consecutive 2s gaps -> every diff is identical: mean=2e6us, std=0.
+    assert features["Flow IAT Mean"] == 2_000_000.0
+    assert features["Flow IAT Std"] == 0.0
+    assert features["Flow IAT Max"] == 2_000_000.0
+    assert features["Flow IAT Min"] == 2_000_000.0
+
+
+def test_cicids_features_forward_iat_statistics():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    # Forward packets are 4s apart (T0 and T0+4s) -- a single interval.
+    assert features["Fwd IAT Total"] == 4_000_000.0
+    assert features["Fwd IAT Mean"] == 4_000_000.0
+    assert features["Fwd IAT Std"] == 0.0
+    assert features["Fwd IAT Max"] == 4_000_000.0
+    assert features["Fwd IAT Min"] == 4_000_000.0
+
+
+def test_cicids_features_backward_iat_statistics():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    # Backward packets are 4s apart (T0+2s and T0+6s) -- a single interval.
+    assert features["Bwd IAT Total"] == 4_000_000.0
+    assert features["Bwd IAT Mean"] == 4_000_000.0
+    assert features["Bwd IAT Std"] == 0.0
+    assert features["Bwd IAT Max"] == 4_000_000.0
+    assert features["Bwd IAT Min"] == 4_000_000.0
+
+
+def test_cicids_features_packet_rates():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    assert features["Flow Bytes/s"] == pytest.approx(800.0 / 6.0)
+    assert features["Flow Packets/s"] == pytest.approx(4.0 / 6.0)
+    assert features["Fwd Packets/s"] == pytest.approx(2.0 / 6.0)
+    assert features["Bwd Packets/s"] == pytest.approx(2.0 / 6.0)
+
+
+def test_cicids_features_tcp_flag_counts():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    # Flags observed: S, SA, PA, A -- SYN set on S+SA (2), ACK set on SA+PA+A (3), PSH set on PA (1).
+    assert features["SYN Flag Count"] == 2.0
+    assert features["ACK Flag Count"] == 3.0
+    assert features["PSH Flag Count"] == 1.0
+    assert features["FIN Flag Count"] == 0.0
+    assert features["RST Flag Count"] == 0.0
+    assert features["URG Flag Count"] == 0.0
+    assert features["CWE Flag Count"] == 0.0
+    assert features["ECE Flag Count"] == 0.0
+    assert features["Fwd PSH Flags"] == 1.0  # only the forward PA packet
+    assert features["Fwd URG Flags"] == 0.0
+
+
+def test_cicids_features_tcp_header_lengths():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    assert features["Fwd Header Length"] == 40.0  # 20 + 20
+    assert features["Bwd Header Length"] == 40.0
+    assert features["min_seg_size_forward"] == 20.0
+
+
+def test_cicids_features_tcp_window_values():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    # Init window = the *first* packet's window in that direction (T0 fwd, T0+2s bwd).
+    assert features["Init_Win_bytes_forward"] == 64240.0
+    assert features["Init_Win_bytes_backward"] == 65535.0
+
+
+def test_cicids_features_payload_data_packet_count():
+    features = _tcp_flow_fixture().to_cicids_features()
+
+    # Only the second forward packet (PA, payload_len=260) carries data.
+    assert features["act_data_pkt_fwd"] == 1.0
+
+
+def test_cicids_features_single_packet_flow_is_safe():
+    [flow_record] = flow.reconstruct_flows([_tcp_pkt("192.168.1.6", 53386, "20.184.175.13", 443, length=100, timestamp=T0, flags="S", window=64240)])
+
+    features = flow_record.to_cicids_features()
+
+    assert features["Total Fwd Packets"] == 1.0
+    assert features["Total Backward Packets"] == 0.0
+    assert features["Flow Duration"] == 0.0
+    assert features["Flow IAT Mean"] == 0.0
+    assert features["Fwd Packet Length Std"] == 0.0
+    assert features["Down/Up Ratio"] == 0.0
+    assert features["Init_Win_bytes_backward"] == -1.0  # no backward packet at all
+    _assert_no_nan_or_inf(features)
+
+
+def test_cicids_features_empty_flow_is_safe():
+    bare_flow = flow.Flow(
+        source_ip="192.168.1.6",
+        destination_ip="20.184.175.13",
+        source_port=53386,
+        destination_port=443,
+        protocol="TCP",
+        start_timestamp=T0,
+        end_timestamp=T0,
+    )
+
+    features = bare_flow.to_cicids_features()
+
+    assert features["Total Fwd Packets"] == 0.0
+    assert features["Total Backward Packets"] == 0.0
+    assert features["Average Packet Size"] == 0.0
+    assert features["Down/Up Ratio"] == 0.0
+    assert features["Init_Win_bytes_forward"] == -1.0
+    assert features["Init_Win_bytes_backward"] == -1.0
+    _assert_no_nan_or_inf(features)
+
+
+def test_cicids_features_incomplete_metadata_falls_back_safely():
+    # Plain packets with none of the TCP-extended fields at all (as
+    # produced by an older/minimal capture.py caller) -- must not crash,
+    # and every TCP-specific feature must reflect "not observed", not a
+    # fabricated value.
+    packets = [
+        _pkt("192.168.1.6", 53386, "20.184.175.13", 443, "TCP", length=100, timestamp=T0),
+        _pkt("20.184.175.13", 443, "192.168.1.6", 53386, "TCP", length=100, timestamp=T0 + timedelta(seconds=1)),
+    ]
+    [flow_record] = flow.reconstruct_flows(packets)
+
+    features = flow_record.to_cicids_features()
+
+    assert features["SYN Flag Count"] == 0.0
+    assert features["Fwd Header Length"] == 0.0
+    assert features["Init_Win_bytes_forward"] == -1.0
+    assert features["min_seg_size_forward"] == 0.0
+    _assert_no_nan_or_inf(features)
+
+
+def test_cicids_features_udp_flow():
+    packets = [
+        _pkt("192.168.1.6", 60000, "8.8.8.8", 53, "UDP", length=64, timestamp=T0) | {"transport_header_length": 8, "tcp_payload_length": 56},
+        _pkt("8.8.8.8", 53, "192.168.1.6", 60000, "UDP", length=512, timestamp=T0 + timedelta(seconds=1)) | {"transport_header_length": 8, "tcp_payload_length": 504},
+    ]
+    [flow_record] = flow.reconstruct_flows(packets)
+
+    features = flow_record.to_cicids_features()
+
+    assert features["Total Fwd Packets"] == 1.0
+    assert features["Total Backward Packets"] == 1.0
+    assert features["Fwd Header Length"] == 8.0
+    assert features["Bwd Header Length"] == 8.0
+    assert features["act_data_pkt_fwd"] == 1.0  # forward packet's payload_len=56 > 0
+    # UDP has no TCP flags/window -- these must be the documented sentinels, not fabricated.
+    assert features["SYN Flag Count"] == 0.0
+    assert features["Init_Win_bytes_forward"] == -1.0
+    assert features["Init_Win_bytes_backward"] == -1.0
+    _assert_no_nan_or_inf(features)
+
+
+def test_cicids_features_icmp_flow():
+    packets = [
+        _pkt("192.168.1.6", None, "1.1.1.1", None, "ICMP", length=64, timestamp=T0),
+        _pkt("1.1.1.1", None, "192.168.1.6", None, "ICMP", length=64, timestamp=T0 + timedelta(seconds=1)),
+    ]
+    [flow_record] = flow.reconstruct_flows(packets)
+
+    features = flow_record.to_cicids_features()
+
+    assert features["Destination Port"] == -1.0  # ICMP has no ports
+    assert features["Total Fwd Packets"] == 1.0
+    assert features["Total Backward Packets"] == 1.0
+    assert features["Init_Win_bytes_forward"] == -1.0
+    assert features["Init_Win_bytes_backward"] == -1.0
+    assert features["SYN Flag Count"] == 0.0
+    assert features["Fwd Header Length"] == 0.0  # never observed for ICMP -- not fabricated
+    assert features["min_seg_size_forward"] == 0.0  # documented divergence -- see flow.py module docstring
+    _assert_no_nan_or_inf(features)
+
+
+def test_cicids_features_never_nan_or_infinite_across_flow_types():
+    _assert_no_nan_or_inf(_tcp_flow_fixture().to_cicids_features())
+
+    single = flow.reconstruct_flows([_tcp_pkt("192.168.1.6", 1, "1.1.1.1", 2, length=100, timestamp=T0, flags="S", window=1000)])[0]
+    _assert_no_nan_or_inf(single.to_cicids_features())
+
+    udp = flow.reconstruct_flows([_pkt("192.168.1.6", 1, "1.1.1.1", 2, "UDP", length=64, timestamp=T0)])[0]
+    _assert_no_nan_or_inf(udp.to_cicids_features())
+
+    icmp = flow.reconstruct_flows([_pkt("192.168.1.6", None, "1.1.1.1", None, "ICMP", length=64, timestamp=T0)])[0]
+    _assert_no_nan_or_inf(icmp.to_cicids_features())

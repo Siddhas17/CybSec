@@ -45,9 +45,16 @@ class CaptureError(Exception):
 
 @dataclass(frozen=True)
 class PacketMetadata:
-    """Payload-free summary of one captured packet. Never holds raw bytes,
-    header options, or application data -- only what's needed to see that
-    capture works."""
+    """Payload-free summary of one captured packet -- header-derived
+    fields only (lengths, flags, window size), never application data.
+    ip_header_length is populated for every IPv4 packet;
+    transport_header_length/tcp_flags/tcp_window/tcp_payload_length are
+    TCP-only except transport_header_length and tcp_payload_length, which
+    are also populated for UDP (fixed 8-byte header; payload length is
+    real header-derived data, not invented) since the CICIDS2017 features
+    this feeds need packet/payload sizing for UDP flows too. All five are
+    None where the underlying value doesn't apply or wasn't obtainable --
+    never a fabricated 0."""
 
     timestamp: datetime
     source_ip: str | None
@@ -56,7 +63,14 @@ class PacketMetadata:
     destination_port: int | None
     protocol: str
     length: int
+    ip_header_length: int | None = None
+    transport_header_length: int | None = None
+    tcp_flags: str | None = None
+    tcp_window: int | None = None
+    tcp_payload_length: int | None = None
 
+
+_UDP_HEADER_LENGTH = 8  # fixed by RFC 768 -- UDP has no options, unlike TCP/IP
 
 _IP_PROTOCOL_NAMES = {
     1: "ICMP",
@@ -120,27 +134,59 @@ def find_wifi_interface(interfaces: Iterable[Any] | None = None) -> Any:
     raise CaptureError("No active Wi-Fi interface with a valid IPv4 address was found. Available interfaces: " + "; ".join(available))
 
 
+def _rebuilt_ip_layer(ip_layer: Any) -> Any:
+    """Scapy leaves computed fields (IP.ihl, TCP.dataofs, ...) as None on
+    a hand-constructed, never-built packet -- e.g. in unit tests -- but a
+    packet actually captured off the wire already has them concrete,
+    because it was dissected from raw bytes rather than assembled from
+    field defaults. Rebuilding-and-reparsing the IP layer's own bytes
+    gets the same concrete values either way (harmless/idempotent for an
+    already-dissected packet), without touching the outer packet's
+    .time. Falls back to the original layer if the rebuild itself fails,
+    so a header-length computation never crashes the whole extraction --
+    it just leaves the affected fields None instead."""
+    try:
+        return IP(bytes(ip_layer))
+    except Exception:
+        return ip_layer
+
+
 def extract_packet_metadata(packet: Any) -> PacketMetadata | None:
     """Extracts safe metadata from one captured packet. Returns None for
     non-IPv4 packets (e.g. ARP) -- out of scope for this phase. Never
     raises for a single malformed/unexpected packet; logs at DEBUG and
-    skips it instead, matching telemetry.py's convention."""
+    skips it instead, matching telemetry.py's convention. Never reads
+    packet payload bytes for anything other than measuring their length."""
     try:
         if IP is None or not packet.haslayer(IP):
             return None
 
-        ip_layer = packet[IP]
+        ip_layer = _rebuilt_ip_layer(packet[IP])
+        ip_header_length = int(ip_layer.ihl) * 4 if ip_layer.ihl is not None else None
+
         source_port: int | None = None
         destination_port: int | None = None
+        transport_header_length: int | None = None
+        tcp_flags: str | None = None
+        tcp_window: int | None = None
+        tcp_payload_length: int | None = None
 
-        if packet.haslayer(TCP):
+        if ip_layer.haslayer(TCP):
             protocol = "TCP"
-            source_port = int(packet[TCP].sport)
-            destination_port = int(packet[TCP].dport)
-        elif packet.haslayer(UDP):
+            tcp_layer = ip_layer[TCP]
+            source_port = int(tcp_layer.sport)
+            destination_port = int(tcp_layer.dport)
+            transport_header_length = int(tcp_layer.dataofs) * 4 if tcp_layer.dataofs is not None else None
+            tcp_flags = str(tcp_layer.flags)
+            tcp_window = int(tcp_layer.window) if tcp_layer.window is not None else None
+            tcp_payload_length = len(bytes(tcp_layer.payload))
+        elif ip_layer.haslayer(UDP):
             protocol = "UDP"
-            source_port = int(packet[UDP].sport)
-            destination_port = int(packet[UDP].dport)
+            udp_layer = ip_layer[UDP]
+            source_port = int(udp_layer.sport)
+            destination_port = int(udp_layer.dport)
+            transport_header_length = _UDP_HEADER_LENGTH
+            tcp_payload_length = len(bytes(udp_layer.payload))
         else:
             protocol = _IP_PROTOCOL_NAMES.get(int(ip_layer.proto), f"IP-PROTO-{ip_layer.proto}")
 
@@ -155,6 +201,11 @@ def extract_packet_metadata(packet: Any) -> PacketMetadata | None:
             destination_port=destination_port,
             protocol=protocol,
             length=len(packet),
+            ip_header_length=ip_header_length,
+            transport_header_length=transport_header_length,
+            tcp_flags=tcp_flags,
+            tcp_window=tcp_window,
+            tcp_payload_length=tcp_payload_length,
         )
     except Exception as exc:  # noqa: BLE001 -- one bad packet must never abort a capture
         logger.debug("Skipping unparseable packet: %s", exc)
