@@ -304,6 +304,15 @@ startup/runbook and [`docs/prevention.md`](docs/prevention.md) plus
 response demonstration sequence -- including why real firewall blocking
 is not achievable in this specific dev environment.
 
+### Victim agent (Phase 1)
+
+Off by default -- `AGENT_ENROLLMENT_KEY` is blank in `.env.example`, and
+registration refuses (503) until an operator sets it. Not part of the
+steps above. See [`docs/victim_agent.md`](docs/victim_agent.md) for the
+architecture and machine-auth design, and
+[`victim_agent/README.md`](victim_agent/README.md) for setting up and
+running the lightweight standalone agent on each victim laptop.
+
 ### Tests
 
 ```bash
@@ -312,6 +321,9 @@ python -m pytest -v
 
 # Backend API tests (WSL2, isolated in-memory SQLite -- no live MySQL needed)
 python -m pytest backend/tests/ -v
+
+# victim_agent's own tests (WSL2 or native Windows, mocked network calls)
+python -m pytest victim_agent/tests/ -v
 
 # Frontend (native Windows)
 cd frontend && npm run test

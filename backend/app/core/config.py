@@ -71,6 +71,19 @@ class Settings(BaseSettings):
     # never implied by LAB_NETWORK_CIDRS membership.
     lab_allow_loopback_target: bool = False
 
+    # victim_agent (Phase 1): one-time shared secret distributed
+    # out-of-band to each victim laptop, checked only by POST
+    # /agents/register -- never reused after that (see
+    # backend/app/api/v1/agents.py). Empty by default so an operator who
+    # forgets to set it gets a hard refusal rather than a silently-open
+    # registration endpoint.
+    agent_enrollment_key: str = ""
+    # How stale `agents.last_seen` can be before GET /agents reports an
+    # agent as offline -- computed at read time, never stored (docs/
+    # victim_agent.md). Independent of the agent's own heartbeat interval,
+    # which the backend doesn't own or trust.
+    agent_offline_threshold_seconds: int = 45
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

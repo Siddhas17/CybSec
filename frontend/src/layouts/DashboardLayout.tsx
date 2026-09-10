@@ -18,6 +18,7 @@ const NAV_ITEMS = [
 // (see backend/app/api/deps.require_admin) -- gating the nav entry here is
 // cosmetic, the real enforcement is server-side and in AdminRoute.
 const ADMIN_NAV_ITEMS = [
+  { to: "/agents", label: "Agents" },
   { to: "/datasets", label: "Datasets" },
   { to: "/model-evaluation", label: "Model Evaluation" },
   { to: "/reports", label: "Reports" },

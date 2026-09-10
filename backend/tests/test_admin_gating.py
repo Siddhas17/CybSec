@@ -12,6 +12,8 @@ from backend.app.core.security import create_access_token, hash_password
 from backend.app.models.user import User
 
 ADMIN_ONLY_GET_ENDPOINTS = [
+    "/api/v1/agents",
+    "/api/v1/telemetry/events",
     "/api/v1/model-eval/autoencoder/metrics",
     "/api/v1/model-eval/knn/metrics",
     "/api/v1/model-eval/comparison",

@@ -2,6 +2,8 @@
 sees every table (needed by Base.metadata.create_all() and Alembic
 autogenerate) regardless of which module actually gets imported first."""
 
+from backend.app.models.agent import Agent
+from backend.app.models.agent_telemetry_event import AgentTelemetryEvent
 from backend.app.models.attack_graph import AttackEdge, AttackNode
 from backend.app.models.detection import Detection
 from backend.app.models.event import Event
@@ -25,4 +27,6 @@ __all__ = [
     "PreventionAction",
     "TrainingRun",
     "SecurityReport",
+    "Agent",
+    "AgentTelemetryEvent",
 ]

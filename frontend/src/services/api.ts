@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import type {
+  AgentOut,
   AttackGraphResponse,
   AttacksByType,
   AutoencoderMetrics,
@@ -94,6 +95,13 @@ export const api = {
     health: () => client.get<SensorHealth>("/sensor/health").then((r) => r.data),
     start: () => client.post("/sensor/start").then((r) => r.data),
     stop: () => client.post("/sensor/stop").then((r) => r.data),
+  },
+
+  // victim_agent (Phase 1) -- admin-only, called with the admin's own
+  // browser JWT (a completely separate channel from agent-to-backend
+  // machine auth, which never touches the frontend).
+  agents: {
+    list: () => client.get<AgentOut[]>("/agents").then((r) => r.data),
   },
 
   prevention: {

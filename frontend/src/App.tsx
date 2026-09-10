@@ -16,6 +16,7 @@ import { DatasetManagement } from "./pages/DatasetManagement";
 import { Victims } from "./pages/Victims";
 import { SystemHealth } from "./pages/SystemHealth";
 import { Prevention } from "./pages/Prevention";
+import { Agents } from "./pages/Agents";
 
 function Protected({ children }: { children: React.ReactNode }) {
   return (
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/model-evaluation" element={<AdminProtected><ModelEvaluation /></AdminProtected>} />
         <Route path="/datasets" element={<AdminProtected><DatasetManagement /></AdminProtected>} />
         <Route path="/reports" element={<AdminProtected><Reports /></AdminProtected>} />
+        <Route path="/agents" element={<AdminProtected><Agents /></AdminProtected>} />
         <Route path="/prevention" element={<Protected><Prevention /></Protected>} />
         <Route path="/system-health" element={<Protected><SystemHealth /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />

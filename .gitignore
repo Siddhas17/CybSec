@@ -75,3 +75,7 @@ frontend/.env.local
 
 # --- Generated security report PDFs (regenerate via POST /reports/generate, don't commit) ---
 backend/storage/
+
+# --- victim_agent (Phase 1): local per-machine identity, holds the
+# per-agent secret token once registered -- never committed. ---
+victim_agent/.agent_identity.json

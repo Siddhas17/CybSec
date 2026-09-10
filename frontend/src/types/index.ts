@@ -386,6 +386,22 @@ export interface SecurityReport {
   created_at: string;
 }
 
+// victim_agent (Phase 1): identity/registration/heartbeat only. `online` is
+// computed server-side from `last_seen` staleness (AGENT_OFFLINE_THRESHOLD_SECONDS)
+// -- never a stored/hardcoded value. `status` is a separate administrative
+// lifecycle flag ("active"/"disabled"), not the online/offline indicator.
+export interface AgentOut {
+  id: number;
+  agent_id: string;
+  hostname: string;
+  ip_address: string | null;
+  agent_version: string | null;
+  status: string;
+  last_seen: string | null;
+  created_at: string;
+  online: boolean;
+}
+
 export interface TrainingRun {
   id: number;
   component: string;
