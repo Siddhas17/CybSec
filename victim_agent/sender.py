@@ -45,6 +45,17 @@ class AgentSender:
         headers = self._agent_headers(agent_id, token)
         return self._post_with_retry("/telemetry/events", payload, headers)
 
+    def score_flow(self, payload: dict, agent_id: str, token: str) -> dict:
+        """Submits one completed victim_agent.flow.Flow's already-computed
+        representation (source_ip, destination_ip, source_port,
+        destination_port, protocol, timestamp, and the 67-name
+        Flow.to_cicids_features() dict -- built by the caller, never
+        recomputed here) to POST /agents/flow-score, and returns the
+        backend's score-only response (risk_score/risk_level/etc, never
+        persisted server-side for this checkpoint)."""
+        headers = self._agent_headers(agent_id, token)
+        return self._post_with_retry("/agents/flow-score", payload, headers)
+
     @staticmethod
     def _agent_headers(agent_id: str, token: str) -> dict:
         return {"X-Agent-Id": agent_id, "Authorization": f"Bearer {token}"}
