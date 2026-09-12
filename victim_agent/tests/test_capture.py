@@ -101,6 +101,20 @@ def test_find_wifi_interface_matches_description_and_requires_valid_ip():
     assert iface.name == "Wi-Fi"
 
 
+def test_find_wifi_interface_matches_on_name_when_description_lacks_wifi():
+    # Real physical laptop case: Windows friendly name is "Wi-Fi" but the
+    # description is a vendor/chipset string containing no "wi-fi"
+    # substring at all -- must still match on name.
+    interfaces = [
+        _iface("Ethernet", "Intel(R) Ethernet Connection", "192.168.56.1"),
+        _iface("Wi-Fi", "Realtek 8821CE Wireless LAN 802.11ac PCI-E NIC", "30.30.30.184"),
+    ]
+
+    iface = capture.find_wifi_interface(interfaces)
+
+    assert iface.ip == "30.30.30.184"
+
+
 def test_find_wifi_interface_rejects_link_local_wifi_direct_adapters():
     interfaces = [
         _iface("Local Area Connection* 2", "Microsoft Wi-Fi Direct Virtual Adapter #2", "169.254.183.67"),

@@ -119,15 +119,20 @@ def _has_active_ipv4(iface: Any) -> bool:
 
 def find_wifi_interface(interfaces: Iterable[Any] | None = None) -> Any:
     """Returns the Scapy interface object for the active Wi-Fi adapter --
-    description containing "Wi-Fi" (case-insensitive) with a real,
-    non-link-local IPv4 address. Raises CaptureError with the list of
-    available interfaces if none qualifies, rather than silently falling
-    back to an arbitrary interface."""
+    name OR description containing "Wi-Fi" (case-insensitive) with a real,
+    non-link-local IPv4 address. Checking only description missed real
+    adapters whose Windows friendly name is "Wi-Fi" but whose description
+    is a vendor/chipset string with no "wi-fi" substring at all (e.g.
+    name="Wi-Fi", description="Realtek 8821CE Wireless LAN 802.11ac
+    PCI-E NIC"). Raises CaptureError with the list of available interfaces
+    if none qualifies, rather than silently falling back to an arbitrary
+    interface."""
     candidates = list(interfaces) if interfaces is not None else _list_interfaces()
 
     for iface in candidates:
-        description = getattr(iface, "description", "") or getattr(iface, "name", "") or ""
-        if "wi-fi" in description.lower() and _has_active_ipv4(iface):
+        name = getattr(iface, "name", "") or ""
+        description = getattr(iface, "description", "") or ""
+        if ("wi-fi" in name.lower() or "wi-fi" in description.lower()) and _has_active_ipv4(iface):
             return iface
 
     available = [f"{getattr(i, 'name', '?')} ({getattr(i, 'description', '?')}, ip={getattr(i, 'ip', None)!r})" for i in candidates]
