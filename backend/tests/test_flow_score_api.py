@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -16,7 +17,7 @@ from victim_agent import flow as victim_flow
 
 from backend.app.api.v1 import flow_scoring as flow_scoring_route
 from backend.app.core.config import settings
-from backend.app.models.attack_graph import AttackEdge
+from backend.app.models.attack_graph import AttackEdge, AttackNode
 from backend.app.models.detection import Detection
 from backend.app.models.event import Event
 from backend.app.models.risk_assessment import RiskAssessment
@@ -38,6 +39,16 @@ def agent_headers(client, monkeypatch):
         json={"agent_id": "victim-01", "hostname": "VICTIM-PC1"},
     ).json()
     return {"X-Agent-Id": "victim-01", "Authorization": f"Bearer {reg['agent_token']}"}
+
+
+@pytest.fixture(autouse=True)
+def _reset_victim_live_graph():
+    """The victim-agent LiveGraph is a process-wide @lru_cache(maxsize=1)
+    singleton (backend.app.api.v1.flow_scoring._get_victim_live_graph) --
+    without this, edges recorded by one test would leak into the next."""
+    flow_scoring_route._get_victim_live_graph.cache_clear()
+    yield
+    flow_scoring_route._get_victim_live_graph.cache_clear()
 
 
 @pytest.fixture()
@@ -220,6 +231,143 @@ def test_flow_score_graph_context_used_false_for_unseen_edge(client, agent_heade
     response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_icmp_flow()))
     assert response.status_code == 200, response.text
     assert response.json()["graph_context_used"] is False
+
+
+# --- LiveGraph integration ---------------------------------------------------
+
+
+def _seed_live_graph(count, src_ip="192.168.1.6", dst_ip="20.184.175.13", start_ts=None):
+    """Directly pre-populates the real victim-agent LiveGraph singleton
+    with `count` all-benign prior flows on (src_ip, dst_ip) -- exercises
+    the real record_flow()/get_context() implementation, not a fake."""
+    live_graph = flow_scoring_route._get_victim_live_graph()
+    if start_ts is None:
+        start_ts = time.time()
+    for i in range(count):
+        live_graph.record_flow(src_ip, dst_ip, 40000 + i, 443, 6, start_ts + i, is_flagged=False)
+    return live_graph
+
+
+def test_flow_score_live_graph_with_zero_prior_flows_is_neutral(client, agent_headers, capture_pipeline_score):
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+    assert response.status_code == 200, response.text
+    assert capture_pipeline_score["graph_context"].is_empty()
+    assert response.json()["graph_context_used"] is False
+
+
+def test_flow_score_expired_live_graph_edge_does_not_provide_context(client, agent_headers, capture_pipeline_score):
+    window_seconds = flow_scoring_route.sensor_config.live_graph_window_seconds
+    _seed_live_graph(
+        flow_scoring_route.LIVE_GRAPH_MIN_FLOWS,
+        start_ts=time.time() - window_seconds - 10,
+    )
+
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+
+    assert response.status_code == 200, response.text
+    assert capture_pipeline_score["graph_context"].is_empty()
+    assert response.json()["graph_context_used"] is False
+
+
+def test_flow_score_live_graph_with_one_prior_flow_is_neutral(client, agent_headers, capture_pipeline_score):
+    _seed_live_graph(1)
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+    assert response.status_code == 200, response.text
+    assert capture_pipeline_score["graph_context"].is_empty()
+    assert response.json()["graph_context_used"] is False
+
+
+def test_flow_score_live_graph_with_nine_prior_flows_is_neutral(client, agent_headers, capture_pipeline_score):
+    _seed_live_graph(flow_scoring_route.LIVE_GRAPH_MIN_FLOWS - 1)
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+    assert response.status_code == 200, response.text
+    assert capture_pipeline_score["graph_context"].is_empty()
+    assert response.json()["graph_context_used"] is False
+
+
+def test_flow_score_live_graph_with_ten_prior_flows_is_used(client, agent_headers, capture_pipeline_score):
+    _seed_live_graph(flow_scoring_route.LIVE_GRAPH_MIN_FLOWS)
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+    assert response.status_code == 200, response.text
+    received_context = capture_pipeline_score["graph_context"]
+    assert not received_context.is_empty()
+    assert received_context.edge_flow_count == flow_scoring_route.LIVE_GRAPH_MIN_FLOWS
+    assert received_context.edge_attack_flow_count == 0
+    assert received_context.edge_attack_ratio == 0.0
+    assert received_context.edge_attack_label_count == 0  # live traffic never has ground-truth labels
+    assert response.json()["graph_context_used"] is True
+
+
+def test_flow_score_records_current_flow_into_live_graph_after_scoring(client, agent_headers):
+    src_ip, dst_ip = "192.168.1.6", "20.184.175.13"
+    live_graph = flow_scoring_route._get_victim_live_graph()
+    assert live_graph.get_context(src_ip, dst_ip).is_empty()
+
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+    assert response.status_code == 200, response.text
+
+    context_after = live_graph.get_context(src_ip, dst_ip)
+    assert not context_after.is_empty()
+    assert context_after.edge_flow_count == 1
+    # This synthetic TCP flow's reconstruction error is far above threshold
+    # (is_anomaly=True, established in prior live validation), so it must
+    # be recorded as flagged -- following is_anomaly or
+    # risk_score >= HIGH_RISK_THRESHOLD, not a new/invented rule.
+    assert response.json()["is_anomaly"] is True
+    assert context_after.edge_attack_flow_count == 1
+
+
+def test_flow_score_historical_graph_takes_precedence_over_live_graph(client, agent_headers, capture_pipeline_score, db_session):
+    src_ip, dst_ip = "192.168.1.6", "20.184.175.13"
+    version = get_or_create_model_version(db_session, "attack_graph", ATTACK_GRAPH_VERSION)
+    db_session.add(
+        AttackEdge(
+            src_ip=src_ip, dst_ip=dst_ip,
+            flow_count=100, benign_flow_count=40, attack_flow_count=60, attack_ratio=0.6,
+            unique_source_ports=5, unique_destination_ports=1, protocols_seen=["TCP"],
+            first_seen=T0, last_seen=T0 + timedelta(hours=2),
+            total_forward_bytes=1000, total_backward_bytes=2000,
+            attack_labels=["PortScan", "DoS"], graph_version_id=version.id,
+        )
+    )
+    db_session.commit()
+    _seed_live_graph(50, src_ip=src_ip, dst_ip=dst_ip)  # far past the 10-flow gate
+
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+
+    assert response.status_code == 200, response.text
+    received_context = capture_pipeline_score["graph_context"]
+    # The HISTORICAL edge's numbers win, unchanged from
+    # test_flow_score_passes_real_graph_context_to_pipeline -- proves
+    # precedence, not a blend with the live edge's 50 all-benign flows.
+    assert received_context.edge_attack_ratio == 0.6
+    assert received_context.edge_attack_flow_count == 60
+    assert received_context.edge_flow_count == 100
+    assert response.json()["graph_context_used"] is True
+
+
+def test_flow_score_live_graph_introduces_no_database_writes(client, agent_headers, db_session):
+    before = (
+        db_session.query(Event).count(),
+        db_session.query(Detection).count(),
+        db_session.query(RiskAssessment).count(),
+        db_session.query(AttackEdge).count(),
+        db_session.query(AttackNode).count(),
+    )
+
+    _seed_live_graph(flow_scoring_route.LIVE_GRAPH_MIN_FLOWS - 1)
+    for _ in range(3):  # crosses the 10-flow gate mid-sequence
+        response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+        assert response.status_code == 200, response.text
+
+    after = (
+        db_session.query(Event).count(),
+        db_session.query(Detection).count(),
+        db_session.query(RiskAssessment).count(),
+        db_session.query(AttackEdge).count(),
+        db_session.query(AttackNode).count(),
+    )
+    assert before == after
 
 
 # --- risk thresholds --------------------------------------------------------

@@ -29,9 +29,34 @@ The only database write this endpoint causes at all is the agents.
 last_seen touch get_current_agent() already performs for every
 agent-authenticated endpoint (register/heartbeat/telemetry) as a side
 effect of authentication -- not something this endpoint adds.
+
+LiveGraph integration (bounded in-memory graph context for pairs the
+offline graph has never seen): a process-local sensor.live_graph.LiveGraph
+instance -- separate from live_sensor_service.py's own instance; victim-
+agent traffic and loopback-sensor traffic are never mixed into one graph
+-- supplies graph context ONLY when graph_service.get_edge_context()
+(the historical, MySQL-persisted graph) returns empty for this exact
+pair, AND only once that edge has accumulated at least
+LIVE_GRAPH_MIN_FLOWS observations of its own. This is a PRECEDENCE rule,
+not a merge: historical evidence, when present, is used exactly as
+before, unchanged; live evidence is a fallback for unseen pairs, never
+blended with historical evidence for the same pair. The minimum-sample
+gate exists because LiveGraph's "attack ratio" comes from the analytical
+pipeline's own prior verdicts on this edge, not ground truth (see
+sensor/live_graph.py's own docstring) -- a single early flagged flow must
+not read as a confirmed attack pattern the way a real historical edge
+with thousands of labeled flows does. record_flow() is always called
+after scoring, regardless of which context (if any) was used, with
+is_anomaly or risk_score >= HIGH_RISK_THRESHOLD as the flagging signal --
+the same convention live_sensor_service.py already established, not a
+new rule. Still zero MySQL writes for anything graph-related: LiveGraph
+is pure in-memory and is reset on every process restart.
 """
 
 from __future__ import annotations
+
+import time
+from functools import lru_cache
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -40,11 +65,31 @@ from backend.app.api.deps import get_current_agent, get_db
 from backend.app.models.agent import Agent
 from backend.app.schemas.flow_scoring import VictimFlowScoreIn, VictimFlowScoreOut
 from backend.app.services import graph_service
-from backend.app.services.analytical_pipeline import AnalyticalPipeline, TelemetryEvent
+from backend.app.services.analytical_pipeline import AnalyticalPipeline, GraphContext, TelemetryEvent
 from backend.app.services.model_registry import get_predictor, get_risk_config
 from backend.app.services.victim_agent_flow_bridge import protocol_name_to_iana
+from risk_engine.config import HIGH_RISK_THRESHOLD
+from sensor.config import sensor_config
+from sensor.live_graph import LiveGraph
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+
+# Minimum live-observed flows on an edge before its LiveGraph context is
+# trusted -- matches risk_engine.config.RiskEngineConfig.repeated_attack_min_flows
+# (also 10), the existing "is this edge's history a big enough sample"
+# threshold already used elsewhere in the risk engine for the same kind
+# of judgment. Below this, a live edge is treated as neutral/empty.
+LIVE_GRAPH_MIN_FLOWS = 10
+
+
+@lru_cache(maxsize=1)
+def _get_victim_live_graph() -> LiveGraph:
+    """One process-wide, in-memory LiveGraph for victim-agent flows --
+    mirrors backend.app.services.model_registry's existing
+    @lru_cache(maxsize=1) singleton pattern for the predictor/risk config.
+    Reuses the same sensor.config knobs live_sensor_service.py's own
+    LiveGraph already uses; this is a SEPARATE instance from that one."""
+    return LiveGraph(window_seconds=sensor_config.live_graph_window_seconds, max_edges=sensor_config.live_graph_max_edges)
 
 
 @router.post("/flow-score", response_model=VictimFlowScoreOut)
@@ -62,10 +107,40 @@ def score_agent_flow(
         timestamp=payload.timestamp,
         features=payload.features,
     )
+
+    live_graph = _get_victim_live_graph()
+
+    # Historical (offline, MySQL-persisted) graph context takes precedence,
+    # completely unchanged from before. Live context is only ever a
+    # fallback for a pair the historical graph has never seen -- never
+    # merged with historical evidence for the same pair.
     graph_context = graph_service.get_edge_context(db, payload.source_ip, payload.destination_ip)
+    if graph_context.is_empty():
+        live_graph.cleanup(time.time())
+        live_context = live_graph.get_context(payload.source_ip, payload.destination_ip)
+        if (live_context.edge_flow_count or 0) >= LIVE_GRAPH_MIN_FLOWS:
+            graph_context = GraphContext(
+                edge_attack_ratio=live_context.edge_attack_ratio,
+                edge_attack_flow_count=live_context.edge_attack_flow_count,
+                edge_flow_count=live_context.edge_flow_count,
+                edge_first_seen=live_context.edge_first_seen,
+                edge_last_seen=live_context.edge_last_seen,
+                edge_attack_label_count=live_context.edge_attack_label_count,
+            )
 
     pipeline = AnalyticalPipeline(get_predictor(), get_risk_config())
     result = pipeline.score(telemetry, graph_context)
+
+    is_flagged = result.is_anomaly or result.risk_score >= HIGH_RISK_THRESHOLD
+    live_graph.record_flow(
+        payload.source_ip,
+        payload.destination_ip,
+        payload.source_port,
+        payload.destination_port,
+        telemetry.protocol,
+        payload.timestamp.timestamp(),
+        is_flagged,
+    )
 
     return VictimFlowScoreOut(
         anomaly_score=result.anomaly_score,
