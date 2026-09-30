@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 import pytest
 
 from backend.app.core.config import settings
+from backend.app.models.agent import Agent
 from backend.app.models.agent_telemetry_event import AgentTelemetryEvent
 from backend.app.models.detection import Detection
 from backend.app.models.event import Event
@@ -65,6 +66,20 @@ def test_telemetry_valid_batch_is_accepted_and_persisted(client, agent_headers, 
     assert statuses == {"ESTABLISHED", "LISTEN"}
     listen_row = next(r for r in rows if r.connection_status == "LISTEN")
     assert listen_row.remote_ip is None  # never fabricated for a LISTEN socket
+
+
+def test_disabled_agent_cannot_ingest_telemetry(client, agent_headers, db_session):
+    agent = db_session.query(Agent).filter(Agent.agent_id == "victim-01").first()
+    agent.status = "disabled"
+    last_seen = agent.last_seen
+    db_session.commit()
+
+    response = client.post("/api/v1/telemetry/events", headers=agent_headers, json=_batch())
+
+    assert response.status_code == 401
+    assert db_session.query(AgentTelemetryEvent).count() == 0
+    db_session.refresh(agent)
+    assert agent.last_seen == last_seen
 
 
 def test_telemetry_never_touches_the_scored_event_tables(client, agent_headers, db_session):

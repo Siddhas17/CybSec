@@ -18,6 +18,7 @@ from victim_agent import flow as victim_flow
 from backend.app.api.v1 import flow_scoring as flow_scoring_route
 from backend.app.core.config import settings
 from backend.app.models.attack_graph import AttackEdge, AttackNode
+from backend.app.models.agent import Agent
 from backend.app.models.detection import Detection
 from backend.app.models.event import Event
 from backend.app.models.risk_assessment import RiskAssessment
@@ -128,6 +129,19 @@ def _payload(f: victim_flow.Flow) -> dict:
 def test_flow_score_requires_agent_auth(client):
     response = client.post("/api/v1/agents/flow-score", json=_payload(_tcp_flow()))
     assert response.status_code == 401
+
+
+def test_disabled_agent_cannot_submit_flow_score(client, agent_headers, db_session):
+    agent = db_session.query(Agent).filter(Agent.agent_id == "victim-01").first()
+    agent.status = "disabled"
+    last_seen = agent.last_seen
+    db_session.commit()
+
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
+
+    assert response.status_code == 401
+    db_session.refresh(agent)
+    assert agent.last_seen == last_seen
 
 
 # --- happy path + protocol mapping through the real HTTP path ------------

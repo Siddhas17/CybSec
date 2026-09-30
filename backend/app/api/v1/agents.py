@@ -16,7 +16,7 @@ from backend.app.api.deps import get_current_agent, get_db, require_admin
 from backend.app.core.config import settings
 from backend.app.models.agent import Agent
 from backend.app.models.user import User
-from backend.app.schemas.agent import AgentHeartbeatIn, AgentOut, AgentRegisterIn, AgentRegisterOut
+from backend.app.schemas.agent import AgentHeartbeatIn, AgentOut, AgentRegisterIn, AgentRegisterOut, AgentStatusUpdateIn
 from backend.app.services import agent_service, audit
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -77,3 +77,35 @@ def list_agents(db: Session = Depends(get_db), _current_user: User = Depends(req
         )
         for a in agents
     ]
+
+
+@router.patch("/{agent_id}/status", response_model=AgentOut)
+def update_agent_status(
+    agent_id: str,
+    payload: AgentStatusUpdateIn,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+) -> AgentOut:
+    agent = agent_service.set_agent_status(db, agent_id, payload.status)
+    if agent is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Agent {agent_id} not found")
+
+    audit.log(
+        db,
+        "INFO",
+        "agent",
+        f"Agent status changed to {agent.status}: {agent.agent_id}",
+        user_id=admin.id,
+        metadata={"agent_id": agent.agent_id, "status": agent.status},
+    )
+    return AgentOut(
+        id=agent.id,
+        agent_id=agent.agent_id,
+        hostname=agent.hostname,
+        ip_address=agent.ip_address,
+        agent_version=agent.agent_version,
+        status=agent.status,
+        last_seen=agent.last_seen,
+        created_at=agent.created_at,
+        online=agent_service.is_online(agent, settings.agent_offline_threshold_seconds),
+    )

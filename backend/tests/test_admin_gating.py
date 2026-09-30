@@ -77,6 +77,20 @@ def test_admin_only_endpoints_still_reject_unauthenticated(client):
     assert response.status_code == 401
 
 
+def test_agent_status_update_rejects_unauthenticated_user(client):
+    response = client.patch("/api/v1/agents/victim-01/status", json={"status": "disabled"})
+    assert response.status_code == 401
+
+
+def test_agent_status_update_rejects_non_admin_user(client, non_admin_auth_headers):
+    response = client.patch(
+        "/api/v1/agents/victim-01/status",
+        headers=non_admin_auth_headers,
+        json={"status": "disabled"},
+    )
+    assert response.status_code == 403
+
+
 def test_generate_report_rejects_non_admin(client, non_admin_auth_headers):
     response = client.post("/api/v1/reports/generate", headers=non_admin_auth_headers)
     assert response.status_code == 403

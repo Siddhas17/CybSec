@@ -402,13 +402,15 @@ export interface SecurityReport {
 // computed server-side from `last_seen` staleness (AGENT_OFFLINE_THRESHOLD_SECONDS)
 // -- never a stored/hardcoded value. `status` is a separate administrative
 // lifecycle flag ("active"/"disabled"), not the online/offline indicator.
+export type AgentLifecycleStatus = "active" | "disabled";
+
 export interface AgentOut {
   id: number;
   agent_id: string;
   hostname: string;
   ip_address: string | null;
   agent_version: string | null;
-  status: string;
+  status: AgentLifecycleStatus;
   last_seen: string | null;
   created_at: string;
   online: boolean;

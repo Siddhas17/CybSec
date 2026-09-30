@@ -5,6 +5,7 @@ ever appears -- never re-returned by any other endpoint."""
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,6 +22,10 @@ class AgentRegisterOut(BaseModel):
     agent_id: str
     agent_token: str
     rotated: bool
+
+
+class AgentStatusUpdateIn(BaseModel):
+    status: Literal["active", "disabled"]
 
 
 class AgentHeartbeatIn(BaseModel):

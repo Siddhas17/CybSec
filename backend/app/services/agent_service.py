@@ -69,6 +69,18 @@ def authenticate_agent(db: Session, agent_id: str, token: str) -> Agent | None:
     agent = get_agent_by_agent_id(db, agent_id)
     if agent is None or not verify_password(token, agent.token_hash):
         return None
+    if agent.status != "active":
+        return None
+    return agent
+
+
+def set_agent_status(db: Session, agent_id: str, status: str) -> Agent | None:
+    agent = get_agent_by_agent_id(db, agent_id)
+    if agent is None:
+        return None
+    agent.status = status
+    db.commit()
+    db.refresh(agent)
     return agent
 
 

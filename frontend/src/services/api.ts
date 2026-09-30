@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance } from "axios";
 import type {
   AgentOut,
+  AgentLifecycleStatus,
   AttackGraphResponse,
   AttacksByType,
   AutoencoderMetrics,
@@ -102,6 +103,8 @@ export const api = {
   // machine auth, which never touches the frontend).
   agents: {
     list: () => client.get<AgentOut[]>("/agents").then((r) => r.data),
+    updateStatus: (agentId: string, status: AgentLifecycleStatus) =>
+      client.patch<AgentOut>(`/agents/${encodeURIComponent(agentId)}/status`, { status }).then((r) => r.data),
   },
 
   prevention: {
