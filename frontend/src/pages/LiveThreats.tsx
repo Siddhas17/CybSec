@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { RiskBadge } from "../components/RiskBadge";
 import { EventSourceTag } from "../components/EventSourceTag";
-import { useWebSocket } from "../hooks/useWebSocket";
-import type { ThreatRow } from "../types";
+import { useAuth } from "../hooks/useAuth";
+import { useAdminFlowScores, useWebSocket } from "../hooks/useWebSocket";
+import type { ThreatRow, VictimFlowScoreMessageData, WebSocketMessage } from "../types";
 
 export function LiveThreats() {
   const [threats, setThreats] = useState<ThreatRow[]>([]);
@@ -12,6 +13,13 @@ export function LiveThreats() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { messages } = useWebSocket();
+  const { isAdmin } = useAuth();
+  const { messages: flowScoreMessages } = useAdminFlowScores(isAdmin);
+  const flowScores = flowScoreMessages
+    .filter(
+      (message): message is WebSocketMessage<VictimFlowScoreMessageData> => message.type === "victim_flow_score",
+    )
+    .map((message) => message.data);
 
   function reload() {
     setLoading(true);
@@ -44,6 +52,47 @@ export function LiveThreats() {
       </div>
 
       {error && <div className="notice-banner">{error}</div>}
+
+      {isAdmin && flowScores.length > 0 && (
+        <div className="panel">
+          <div className="section-title">Victim Flow Scores (Live Session)</div>
+          <div className="page-subtitle" style={{ marginBottom: "0.75rem" }}>
+            Transient agent scores. These are not persisted threats and disappear when this session ends.
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Timestamp</th>
+                <th>Agent</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Protocol</th>
+                <th>Risk Score</th>
+                <th>Risk Level</th>
+                <th>Anomaly</th>
+                <th>Graph Context</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flowScores.map((score, index) => (
+                <tr key={`${score.agent_id}-${score.timestamp}-${index}`}>
+                  <td><span className="badge outline">Victim Flow Score</span></td>
+                  <td>{new Date(score.timestamp).toLocaleString()}</td>
+                  <td className="mono">{score.agent_id}</td>
+                  <td className="mono">{score.source_ip}</td>
+                  <td className="mono">{score.destination_ip}</td>
+                  <td>{score.protocol}</td>
+                  <td>{score.risk_score.toFixed(2)}</td>
+                  <td><RiskBadge level={score.risk_level} /></td>
+                  <td>{score.is_anomaly ? "Yes" : "No"}</td>
+                  <td>{score.graph_context_used ? "Used" : "Not used"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="panel">
         {loading ? (

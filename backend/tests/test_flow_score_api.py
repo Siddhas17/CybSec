@@ -144,6 +144,39 @@ def test_flow_score_valid_tcp_request_returns_detection_result(client, agent_hea
     assert body["imputed_features"] == []  # all 67 features were supplied
 
 
+def test_flow_score_broadcasts_one_admin_only_transient_message(client, agent_headers, auth_headers):
+    admin_token = auth_headers["Authorization"].removeprefix("Bearer ")
+    flow_payload = _payload(_tcp_flow())
+
+    with (
+        client.websocket_connect(f"/ws/admin/victim-flow-scores?token={admin_token}") as admin_ws,
+        client.websocket_connect("/ws/events") as global_ws,
+    ):
+        global_ws.receive_json()  # existing global connection handshake
+        response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=flow_payload)
+
+        assert response.status_code == 200, response.text
+        message = admin_ws.receive_json()
+        assert message["type"] == "victim_flow_score"
+        assert message["data"] == {
+            "agent_id": "victim-01",
+            "source_ip": flow_payload["source_ip"],
+            "destination_ip": flow_payload["destination_ip"],
+            "protocol": flow_payload["protocol"],
+            "timestamp": flow_payload["timestamp"],
+            "risk_score": response.json()["risk_score"],
+            "risk_level": response.json()["risk_level"],
+            "is_anomaly": response.json()["is_anomaly"],
+            "graph_context_used": response.json()["graph_context_used"],
+        }
+
+        # An extra event would arrive before the pong.
+        global_ws.send_text("ping")
+        assert global_ws.receive_text() == "pong"
+        admin_ws.send_text("ping")
+        assert admin_ws.receive_text() == "pong"
+
+
 def test_flow_score_tcp_protocol_maps_to_iana_6(client, agent_headers, capture_pipeline_score):
     client.post("/api/v1/agents/flow-score", headers=agent_headers, json=_payload(_tcp_flow()))
     assert capture_pipeline_score["event"].protocol == 6

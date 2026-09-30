@@ -15,14 +15,11 @@ mapping, so the mapping logic still lives in exactly one place -- not
 duplicated here.
 
 Deliberately does NOT persist anything (no Event/Detection/RiskAssessment
-row), does NOT broadcast over WebSocket, and does NOT call the prevention
-response layer -- unlike test_events.py's /test-events, which does all
-three. This checkpoint is score-only by explicit instruction; a later
-phase can decide whether/how live victim-agent detections should be
-persisted and whether they should feed the same automatic ALERT/
-BLOCK_CANDIDATE response live_sensor_service.py already has for the
-loopback sensor. KNN is never invoked -- same as every other scoring path
-in this codebase (see ml.models.knn_inference.KNNPredictor's own
+row), broadcast over the global WebSocket, or call the prevention response
+layer -- unlike test_events.py's /test-events, which does all three. A
+transient result is broadcast only through the separate Admin-authenticated
+WebSocket channel. KNN is never invoked -- same as every other scoring
+path in this codebase (see ml.models.knn_inference.KNNPredictor's own
 docstring).
 
 The only database write this endpoint causes at all is the agents.
@@ -58,6 +55,7 @@ from __future__ import annotations
 import time
 from functools import lru_cache
 
+from anyio import from_thread
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -68,6 +66,7 @@ from backend.app.services import graph_service
 from backend.app.services.analytical_pipeline import AnalyticalPipeline, GraphContext, TelemetryEvent
 from backend.app.services.model_registry import get_predictor, get_risk_config
 from backend.app.services.victim_agent_flow_bridge import protocol_name_to_iana
+from backend.app.websocket.manager import manager
 from risk_engine.config import HIGH_RISK_THRESHOLD
 from sensor.config import sensor_config
 from sensor.live_graph import LiveGraph
@@ -140,6 +139,21 @@ def score_agent_flow(
         telemetry.protocol,
         payload.timestamp.timestamp(),
         is_flagged,
+    )
+
+    from_thread.run(
+        manager.broadcast_admin_flow_score,
+        {
+            "agent_id": _current_agent.agent_id,
+            "source_ip": payload.source_ip,
+            "destination_ip": payload.destination_ip,
+            "protocol": payload.protocol,
+            "timestamp": payload.timestamp.isoformat(),
+            "risk_score": result.risk_score,
+            "risk_level": result.risk_level,
+            "is_anomaly": result.is_anomaly,
+            "graph_context_used": not graph_context.is_empty(),
+        },
     )
 
     return VictimFlowScoreOut(

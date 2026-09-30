@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 class ConnectionManager:
     def __init__(self) -> None:
         self._active: set[WebSocket] = set()
+        self._admin_flow_score_active: set[WebSocket] = set()
 
     async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
@@ -29,6 +30,27 @@ class ConnectionManager:
     def disconnect(self, websocket: WebSocket) -> None:
         self._active.discard(websocket)
         logger.info("WebSocket disconnected (%d active)", len(self._active))
+
+    async def connect_admin_flow_scores(self, websocket: WebSocket) -> None:
+        await websocket.accept()
+        self._admin_flow_score_active.add(websocket)
+
+    def disconnect_admin_flow_scores(self, websocket: WebSocket) -> None:
+        self._admin_flow_score_active.discard(websocket)
+
+    async def broadcast_admin_flow_score(self, payload: dict[str, Any]) -> None:
+        """Deliver transient victim scores only to Admin-authenticated sockets."""
+        if not self._admin_flow_score_active:
+            return
+        message = json.dumps({"type": "victim_flow_score", "data": payload}, default=str)
+        stale: list[WebSocket] = []
+        for connection in tuple(self._admin_flow_score_active):
+            try:
+                await connection.send_text(message)
+            except Exception:
+                stale.append(connection)
+        for connection in stale:
+            self._admin_flow_score_active.discard(connection)
 
     async def broadcast(self, event_type: str, payload: dict[str, Any]) -> None:
         """Sends {"type": event_type, "data": payload} to every connected

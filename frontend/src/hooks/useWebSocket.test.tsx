@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useWebSocket } from "./useWebSocket";
+import { clearToken, setToken } from "../services/api";
+import { useAdminFlowScores, useWebSocket } from "./useWebSocket";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -45,6 +46,7 @@ describe("useWebSocket", () => {
   });
 
   afterEach(() => {
+    clearToken();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -82,5 +84,21 @@ describe("useWebSocket", () => {
     });
 
     expect(MockWebSocket.instances).toHaveLength(2); // a new connection attempt was made
+  });
+
+  it("connects and reconnects to the Admin score socket with the stored JWT", () => {
+    setToken("admin-jwt");
+    const { result } = renderHook(() => useAdminFlowScores(true));
+
+    expect(MockWebSocket.instances[0].url).toContain("/ws/admin/victim-flow-scores?token=admin-jwt");
+    act(() => MockWebSocket.instances[0].close());
+    expect(result.current.status).toBe("disconnected");
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(MockWebSocket.instances).toHaveLength(2);
+    expect(MockWebSocket.instances[1].url).toContain("/ws/admin/victim-flow-scores?token=admin-jwt");
   });
 });

@@ -3,7 +3,8 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LiveThreats } from "./LiveThreats";
 import { api } from "../services/api";
-import type { ThreatRow } from "../types";
+import { useAdminFlowScores } from "../hooks/useWebSocket";
+import type { ThreatRow, VictimFlowScoreMessageData } from "../types";
 
 vi.mock("../services/api", () => ({
   api: { listThreats: vi.fn() },
@@ -11,6 +12,11 @@ vi.mock("../services/api", () => ({
 
 vi.mock("../hooks/useWebSocket", () => ({
   useWebSocket: () => ({ status: "connected", messages: [] }),
+  useAdminFlowScores: vi.fn(() => ({ status: "connected", messages: [] })),
+}));
+
+vi.mock("../hooks/useAuth", () => ({
+  useAuth: () => ({ isAdmin: true }),
 }));
 
 const SAMPLE_THREAT: ThreatRow = {
@@ -32,6 +38,7 @@ const SAMPLE_THREAT: ThreatRow = {
 describe("LiveThreats", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useAdminFlowScores).mockReturnValue({ status: "connected", messages: [] });
   });
 
   it("renders the threat table with real API data", async () => {
@@ -59,6 +66,39 @@ describe("LiveThreats", () => {
     );
 
     await waitFor(() => expect(screen.getByText("No events yet.")).toBeInTheDocument());
+  });
+
+  it("renders transient Victim Flow Scores separately from persisted threats", async () => {
+    vi.mocked(api.listThreats).mockResolvedValue([]);
+    const flowScore: VictimFlowScoreMessageData = {
+      agent_id: "victim-01",
+      source_ip: "192.168.1.6",
+      destination_ip: "20.184.175.13",
+      protocol: "TCP",
+      timestamp: "2026-09-30T12:00:00Z",
+      risk_score: 7.25,
+      risk_level: "High",
+      is_anomaly: true,
+      graph_context_used: true,
+    };
+    vi.mocked(useAdminFlowScores).mockReturnValue({
+      status: "connected",
+      messages: [{ type: "victim_flow_score", data: flowScore }],
+    });
+
+    render(
+      <MemoryRouter>
+        <LiveThreats />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Victim Flow Scores (Live Session)")).toBeInTheDocument();
+    expect(screen.getByText("Victim Flow Score")).toBeInTheDocument();
+    expect(screen.getByText("victim-01")).toBeInTheDocument();
+    expect(screen.getByText("192.168.1.6")).toBeInTheDocument();
+    expect(screen.getByText("20.184.175.13")).toBeInTheDocument();
+    expect(screen.getByText("7.25")).toBeInTheDocument();
+    expect(screen.getByText("No events yet.")).toBeInTheDocument();
   });
 
   it("shows an error banner instead of crashing when the API call fails", async () => {

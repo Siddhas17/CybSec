@@ -211,8 +211,20 @@ export interface TestEventResult {
   graph_context_found: boolean;
 }
 
+export interface VictimFlowScoreMessageData {
+  agent_id: string;
+  source_ip: string;
+  destination_ip: string;
+  protocol: string;
+  timestamp: string;
+  risk_score: number;
+  risk_level: RiskLevel;
+  is_anomaly: boolean;
+  graph_context_used: boolean;
+}
+
 export interface WebSocketMessage<T = unknown> {
-  type: "connected" | "heartbeat" | "new_threat" | "prevention_action";
+  type: "connected" | "heartbeat" | "new_threat" | "prevention_action" | "victim_flow_score";
   data: T;
 }
 

@@ -3,6 +3,12 @@ test-event -> DB -> API -> WebSocket flow."""
 
 from __future__ import annotations
 
+import pytest
+from starlette.websockets import WebSocketDisconnect
+
+from backend.app.core.security import create_access_token, hash_password
+from backend.app.models.user import User
+
 
 def test_websocket_connects_and_sends_connected_message(client):
     with client.websocket_connect("/ws/events") as ws:
@@ -22,6 +28,32 @@ def test_websocket_clean_disconnect_does_not_raise(client):
     with client.websocket_connect("/ws/events") as ws:
         ws.receive_json()
     # exiting the `with` block disconnects; no exception should propagate
+
+
+def test_admin_flow_score_websocket_accepts_admin_jwt(client, auth_headers):
+    token = auth_headers["Authorization"].removeprefix("Bearer ")
+    with client.websocket_connect(f"/ws/admin/victim-flow-scores?token={token}") as ws:
+        ws.send_text("ping")
+        assert ws.receive_text() == "pong"
+
+
+def test_admin_flow_score_websocket_rejects_unauthenticated_connection(client):
+    with pytest.raises(WebSocketDisconnect) as disconnected:
+        with client.websocket_connect("/ws/admin/victim-flow-scores"):
+            pass
+    assert disconnected.value.code == 4401
+
+
+def test_admin_flow_score_websocket_rejects_non_admin_user(client, db_session):
+    user = User(username="analyst", hashed_password=hash_password("analyst-pw"), is_admin=False)
+    db_session.add(user)
+    db_session.commit()
+    token = create_access_token(subject=user.username)
+
+    with pytest.raises(WebSocketDisconnect) as disconnected:
+        with client.websocket_connect(f"/ws/admin/victim-flow-scores?token={token}"):
+            pass
+    assert disconnected.value.code == 4403
 
 
 def test_end_to_end_test_event_reaches_websocket(client, auth_headers):
