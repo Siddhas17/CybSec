@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import math
 from datetime import datetime, timedelta, UTC
+from pathlib import Path
 
 import pytest
 from scapy.layers.inet import ICMP, IP, TCP, UDP
@@ -280,6 +282,20 @@ def test_cicids_features_exact_order():
 
     assert list(features.keys()) == EXPECTED_CICIDS_FEATURE_NAMES
     assert list(flow.CICIDS_FEATURE_NAMES) == EXPECTED_CICIDS_FEATURE_NAMES
+
+
+def test_cicids_feature_names_match_autoencoder_artifact_order():
+    artifact_path = (
+        Path(__file__).resolve().parents[2]
+        / "ml"
+        / "models"
+        / "artifacts"
+        / "autoencoder"
+        / "feature_names.json"
+    )
+    artifact_feature_names = json.loads(artifact_path.read_text(encoding="utf-8"))
+
+    assert list(flow.CICIDS_FEATURE_NAMES) == artifact_feature_names
 
 
 def test_cicids_features_forward_and_backward_packet_counts():

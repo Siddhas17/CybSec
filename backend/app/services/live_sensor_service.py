@@ -38,13 +38,6 @@ from sensor.normalization.flow_reconstruction import FlowAccumulator, RawFlow
 
 logger = logging.getLogger(__name__)
 
-# What LiveGraph treats as "this edge's own live detections flagged it" --
-# matches risk_engine's own "High" boundary (docs/risk_engine.md section
-# 7), but this is never ground truth (section 9): it is the analytical
-# pipeline's own live output feeding back into LIVE_GRAPH's edge stats.
-HIGH_RISK_FLAG_THRESHOLD = 7.0
-
-
 @dataclass
 class SensorHealth:
     collector_status: str
@@ -184,12 +177,9 @@ class LiveSensorService:
 
             live_context = self._live_graph.get_context(flow.forward_ip, flow.backward_ip)
             graph_context = GraphContext(
-                edge_attack_ratio=live_context.edge_attack_ratio,
-                edge_attack_flow_count=live_context.edge_attack_flow_count,
                 edge_flow_count=live_context.edge_flow_count,
                 edge_first_seen=live_context.edge_first_seen,
                 edge_last_seen=live_context.edge_last_seen,
-                edge_attack_label_count=live_context.edge_attack_label_count,
             )
 
             result = pipeline.score(telemetry, graph_context)
@@ -197,7 +187,6 @@ class LiveSensorService:
             self._broadcast(event, result)
             self._respond(event, result)
 
-            is_flagged = result.is_anomaly or result.risk_score >= HIGH_RISK_FLAG_THRESHOLD
             self._live_graph.record_flow(
                 flow.forward_ip,
                 flow.backward_ip,
@@ -205,7 +194,6 @@ class LiveSensorService:
                 flow.backward_port,
                 flow.protocol,
                 flow.last_ts,
-                is_flagged,
             )
             self._events_processed += 1
         except Exception as exc:  # one bad flow (e.g. DB unavailable) must not stop the sensor (section 13)

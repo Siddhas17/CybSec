@@ -11,12 +11,23 @@ from __future__ import annotations
 
 import math
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 from victim_agent.flow import CICIDS_FEATURE_NAMES
 
 _EXPECTED_FEATURE_NAMES = frozenset(CICIDS_FEATURE_NAMES)
+_NON_NEGATIVE_FEATURES = _EXPECTED_FEATURE_NAMES - {
+    "Destination Port",
+    "Init_Win_bytes_forward",
+    "Init_Win_bytes_backward",
+}
+_PORT_FEATURES = {
+    "Destination Port",
+    "Init_Win_bytes_forward",
+    "Init_Win_bytes_backward",
+}
 
 
 class VictimFlowScoreIn(BaseModel):
@@ -32,9 +43,12 @@ class VictimFlowScoreIn(BaseModel):
     timestamp: datetime
     features: dict[str, float]
 
-    @field_validator("features")
+    @field_validator("features", mode="before")
     @classmethod
-    def _check_features(cls, v: dict[str, float]) -> dict[str, float]:
+    def _check_features(cls, v: Any) -> dict[str, float]:
+        if not isinstance(v, dict):
+            raise ValueError("features must be an object containing the 67 CICIDS2017 feature values")
+
         actual = set(v.keys())
         if actual != _EXPECTED_FEATURE_NAMES:
             missing = sorted(_EXPECTED_FEATURE_NAMES - actual)
@@ -43,12 +57,27 @@ class VictimFlowScoreIn(BaseModel):
                 "features must contain exactly the 67 CICIDS2017 feature names "
                 f"(missing={missing}, unexpected={unexpected})"
             )
+
+        validated: dict[str, float] = {}
         for name, value in v.items():
             if not isinstance(value, (int, float)) or isinstance(value, bool):
                 raise ValueError(f"feature {name!r} must be numeric, got {type(value).__name__}")
-            if math.isnan(value) or math.isinf(value):
+            try:
+                numeric_value = float(value)
+            except OverflowError as exc:
+                raise ValueError(f"feature {name!r} must be a finite number, got {value}") from exc
+            if not math.isfinite(numeric_value):
                 raise ValueError(f"feature {name!r} must be a finite number, got {value}")
-        return v
+
+            if name in _NON_NEGATIVE_FEATURES and numeric_value < 0:
+                raise ValueError(f"feature {name!r} must be non-negative, got {value}")
+            if name in _PORT_FEATURES and numeric_value != -1 and (
+                not numeric_value.is_integer() or not 0 <= numeric_value <= 65535
+            ):
+                raise ValueError(f"feature {name!r} must be -1 or an integer in [0, 65535], got {value}")
+
+            validated[name] = numeric_value
+        return validated
 
 
 class VictimFlowScoreOut(BaseModel):

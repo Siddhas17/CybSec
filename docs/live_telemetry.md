@@ -212,12 +212,13 @@ Neither graph may impersonate the other, in either direction:
   count still exceeds `live_graph_max_edges` (default 5000) after that,
   the least-recently-active edges are evicted next. An unattended sensor
   cannot grow memory without limit.
-- **Never ground truth**: `edge_attack_ratio` is the fraction of *this
-  edge's own live flows the analytical pipeline itself already flagged*
-  (`risk_score >= 7.0` or `is_anomaly`), never a real attack label --
-  there is no ground truth for genuinely live traffic.
-  `edge_attack_label_count` is always `0` for this reason, unlike
-  `OFFLINE_GRAPH`'s equivalent field.
+- **Observations are not attack evidence**: LiveGraph stores observed
+  flow counts and timestamps only. It does not consume anomaly verdicts
+  or risk scores; its context leaves attack ratio, attack-flow count, and
+  attack-label count unset. The risk engine therefore receives no
+  self-generated attack evidence from live traffic. Live context may
+  still contribute observed-flow history and bounded temporal persistence
+  after the caller's history gate; neither establishes malicious intent.
 
 ## 10. What upgrading beyond loopback would require
 

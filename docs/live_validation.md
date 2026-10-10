@@ -88,12 +88,13 @@ variant to test whether packet-rate anomaly pushed the score further:
 | 2 | 200 | sequential | 8.41 | Critical |
 | 3 | 300 | concurrent (threaded) | 8.48 | Critical |
 
-**A real, measurable escalation over benign traffic** (7.43 -> 8.3-8.5),
-and a real, visible rising trend *within* a single scan as `LIVE_GRAPH`
-accumulated `edge_attack_ratio` context from the sensor's own prior
-flagged flows on the same edge (individual `PreventionAction.reason`
-values climbed from `risk_score 8.2557` to `8.2982` across one run's
-`ALERT` sequence, in the actual order they were created).
+The recorded score comparison showed higher scores for these suspicious
+traffic runs than for the benign baseline. The within-scan rising trend
+in those runs was partly driven by `LIVE_GRAPH` feeding prior anomaly/high-
+risk verdicts back as `edge_attack_ratio`. Those flags are not ground
+truth; the trend is not independent attack evidence and should not be
+interpreted as such. Current LiveGraph behavior retains observed-flow
+counts and timestamps only, leaving attack-specific context unset.
 
 **Also a real, honest finding:** across three escalating attempts, the
 score plateaued around ~8.4-8.5 and did not organically reach the shipped

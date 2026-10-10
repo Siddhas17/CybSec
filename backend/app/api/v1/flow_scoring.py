@@ -38,16 +38,12 @@ LIVE_GRAPH_MIN_FLOWS observations of its own. This is a PRECEDENCE rule,
 not a merge: historical evidence, when present, is used exactly as
 before, unchanged; live evidence is a fallback for unseen pairs, never
 blended with historical evidence for the same pair. The minimum-sample
-gate exists because LiveGraph's "attack ratio" comes from the analytical
-pipeline's own prior verdicts on this edge, not ground truth (see
-sensor/live_graph.py's own docstring) -- a single early flagged flow must
-not read as a confirmed attack pattern the way a real historical edge
-with thousands of labeled flows does. record_flow() is always called
-after scoring, regardless of which context (if any) was used, with
-is_anomaly or risk_score >= HIGH_RISK_THRESHOLD as the flagging signal --
-the same convention live_sensor_service.py already established, not a
-new rule. Still zero MySQL writes for anything graph-related: LiveGraph
-is pure in-memory and is reset on every process restart.
+gate determines when observed-flow counts and timestamps are supplied as
+context; LiveGraph does not treat verdicts or risk scores as attack
+evidence. Its attack-specific context fields remain unset. record_flow()
+is called after scoring regardless of result, storing the observation
+only. Still zero MySQL writes for anything graph-related: LiveGraph is
+pure in-memory and is reset on every process restart.
 """
 
 from __future__ import annotations
@@ -67,17 +63,14 @@ from backend.app.services.analytical_pipeline import AnalyticalPipeline, GraphCo
 from backend.app.services.model_registry import get_predictor, get_risk_config
 from backend.app.services.victim_agent_flow_bridge import protocol_name_to_iana
 from backend.app.websocket.manager import manager
-from risk_engine.config import HIGH_RISK_THRESHOLD
 from sensor.config import sensor_config
 from sensor.live_graph import LiveGraph
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
-# Minimum live-observed flows on an edge before its LiveGraph context is
-# trusted -- matches risk_engine.config.RiskEngineConfig.repeated_attack_min_flows
-# (also 10), the existing "is this edge's history a big enough sample"
-# threshold already used elsewhere in the risk engine for the same kind
-# of judgment. Below this, a live edge is treated as neutral/empty.
+# Minimum observed flows on an edge before its observational LiveGraph
+# context is used. This is a history-size gate, not a claim that the edge
+# has any confirmed attack activity.
 LIVE_GRAPH_MIN_FLOWS = 10
 
 
@@ -119,18 +112,14 @@ def score_agent_flow(
         live_context = live_graph.get_context(payload.source_ip, payload.destination_ip)
         if (live_context.edge_flow_count or 0) >= LIVE_GRAPH_MIN_FLOWS:
             graph_context = GraphContext(
-                edge_attack_ratio=live_context.edge_attack_ratio,
-                edge_attack_flow_count=live_context.edge_attack_flow_count,
                 edge_flow_count=live_context.edge_flow_count,
                 edge_first_seen=live_context.edge_first_seen,
                 edge_last_seen=live_context.edge_last_seen,
-                edge_attack_label_count=live_context.edge_attack_label_count,
             )
 
     pipeline = AnalyticalPipeline(get_predictor(), get_risk_config())
     result = pipeline.score(telemetry, graph_context)
 
-    is_flagged = result.is_anomaly or result.risk_score >= HIGH_RISK_THRESHOLD
     live_graph.record_flow(
         payload.source_ip,
         payload.destination_ip,
@@ -138,7 +127,6 @@ def score_agent_flow(
         payload.destination_port,
         telemetry.protocol,
         payload.timestamp.timestamp(),
-        is_flagged,
     )
 
     from_thread.run(

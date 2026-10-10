@@ -12,6 +12,7 @@ import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from pydantic import ValidationError
 
 from victim_agent import flow as victim_flow
 
@@ -247,6 +248,44 @@ def test_flow_score_rejects_non_numeric_feature_value(client, agent_headers):
     assert response.status_code == 422
 
 
+def test_flow_score_rejects_boolean_feature_value(client, agent_headers):
+    payload = _payload(_tcp_flow())
+    payload["features"]["Flow Duration"] = True
+
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=payload)
+
+    assert response.status_code == 422
+    assert "must be numeric" in response.text
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_flow_score_schema_rejects_non_finite_feature_value(value):
+    payload = _payload(_tcp_flow())
+    payload["features"]["Flow Duration"] = value
+
+    with pytest.raises(ValidationError, match="finite number"):
+        flow_scoring_schema.VictimFlowScoreIn.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("feature_name", "value"),
+    [
+        ("Flow Duration", -1.0),
+        ("Destination Port", 65536.0),
+        ("Init_Win_bytes_forward", -2.0),
+        ("Init_Win_bytes_backward", 1.5),
+    ],
+)
+def test_flow_score_rejects_invalid_feature_domain(client, agent_headers, feature_name, value):
+    payload = _payload(_tcp_flow())
+    payload["features"][feature_name] = value
+
+    response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=payload)
+
+    assert response.status_code == 422
+    assert feature_name in response.text
+
+
 # --- graph context ----------------------------------------------------------
 
 
@@ -285,13 +324,13 @@ def test_flow_score_graph_context_used_false_for_unseen_edge(client, agent_heade
 
 def _seed_live_graph(count, src_ip="192.168.1.6", dst_ip="20.184.175.13", start_ts=None):
     """Directly pre-populates the real victim-agent LiveGraph singleton
-    with `count` all-benign prior flows on (src_ip, dst_ip) -- exercises
+    with `count` observed flows on (src_ip, dst_ip) -- exercises
     the real record_flow()/get_context() implementation, not a fake."""
     live_graph = flow_scoring_route._get_victim_live_graph()
     if start_ts is None:
         start_ts = time.time()
     for i in range(count):
-        live_graph.record_flow(src_ip, dst_ip, 40000 + i, 443, 6, start_ts + i, is_flagged=False)
+        live_graph.record_flow(src_ip, dst_ip, 40000 + i, 443, 6, start_ts + i)
     return live_graph
 
 
@@ -339,9 +378,9 @@ def test_flow_score_live_graph_with_ten_prior_flows_is_used(client, agent_header
     received_context = capture_pipeline_score["graph_context"]
     assert not received_context.is_empty()
     assert received_context.edge_flow_count == flow_scoring_route.LIVE_GRAPH_MIN_FLOWS
-    assert received_context.edge_attack_flow_count == 0
-    assert received_context.edge_attack_ratio == 0.0
-    assert received_context.edge_attack_label_count == 0  # live traffic never has ground-truth labels
+    assert received_context.edge_attack_flow_count is None
+    assert received_context.edge_attack_ratio is None
+    assert received_context.edge_attack_label_count is None
     assert response.json()["graph_context_used"] is True
 
 
@@ -356,12 +395,39 @@ def test_flow_score_records_current_flow_into_live_graph_after_scoring(client, a
     context_after = live_graph.get_context(src_ip, dst_ip)
     assert not context_after.is_empty()
     assert context_after.edge_flow_count == 1
-    # This synthetic TCP flow's reconstruction error is far above threshold
-    # (is_anomaly=True, established in prior live validation), so it must
-    # be recorded as flagged -- following is_anomaly or
-    # risk_score >= HIGH_RISK_THRESHOLD, not a new/invented rule.
+    # The verdict is returned as a detection result only; LiveGraph stores
+    # the observed flow without turning that verdict into attack evidence.
     assert response.json()["is_anomaly"] is True
-    assert context_after.edge_attack_flow_count == 1
+    assert not hasattr(context_after, "edge_attack_flow_count")
+    assert not hasattr(context_after, "edge_attack_ratio")
+
+
+def test_repeated_anomalies_do_not_amplify_live_attack_evidence_or_score(client, agent_headers, capture_pipeline_score):
+    src_ip, dst_ip = "192.168.1.6", "20.184.175.13"
+    live_graph = flow_scoring_route._get_victim_live_graph()
+    payload = _payload(_tcp_flow())
+    payload["timestamp"] = datetime.now(UTC).isoformat()
+    risk_scores = []
+
+    for _ in range(flow_scoring_route.LIVE_GRAPH_MIN_FLOWS + 5):
+        response = client.post("/api/v1/agents/flow-score", headers=agent_headers, json=payload)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["is_anomaly"] is True
+        risk_scores.append(body["risk_score"])
+
+        live_context = live_graph.get_context(src_ip, dst_ip)
+        assert live_context.edge_flow_count is not None
+        assert not hasattr(live_context, "edge_attack_flow_count")
+        assert not hasattr(live_context, "edge_attack_ratio")
+
+        if capture_pipeline_score["graph_context"].edge_flow_count is not None:
+            assert capture_pipeline_score["graph_context"].edge_attack_flow_count is None
+            assert capture_pipeline_score["graph_context"].edge_attack_ratio is None
+            assert capture_pipeline_score["graph_context"].edge_attack_label_count is None
+
+    assert len(set(risk_scores)) == 1
+    assert 1.0 <= risk_scores[0] <= 10.0
 
 
 def test_flow_score_historical_graph_takes_precedence_over_live_graph(client, agent_headers, capture_pipeline_score, db_session):
@@ -386,7 +452,7 @@ def test_flow_score_historical_graph_takes_precedence_over_live_graph(client, ag
     received_context = capture_pipeline_score["graph_context"]
     # The HISTORICAL edge's numbers win, unchanged from
     # test_flow_score_passes_real_graph_context_to_pipeline -- proves
-    # precedence, not a blend with the live edge's 50 all-benign flows.
+    # precedence, not a blend with the live edge's 50 observations.
     assert received_context.edge_attack_ratio == 0.6
     assert received_context.edge_attack_flow_count == 60
     assert received_context.edge_flow_count == 100

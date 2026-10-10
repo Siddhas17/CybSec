@@ -1,5 +1,5 @@
 """LIVE_GRAPH: a bounded, in-memory, incremental communication graph built
-only from observed live TelemetryEvents (section 8/9).
+only from observed live flows (section 8/9).
 
 This is explicitly NOT the Phase 2 attack graph (OFFLINE_GRAPH,
 attack_graph/, persisted in MySQL by backend/app/services/graph_service.py
@@ -11,10 +11,10 @@ graph_source="offline_graph" implicitly, see docs/live_telemetry.md
 section 7) -- section 8 explicitly forbids presenting the offline
 retrospective graph as real-time context, and the reverse mistake (letting
 a young live graph's thin edge history read as confidently as the
-label-informed offline graph) is avoided the same way: LIVE_GRAPH's
-"attack ratio" is a fraction of *this edge's own live detections the
-analytical pipeline itself flagged*, never ground truth -- there is none
-for genuinely live traffic (section 9's explicit warning).
+label-informed offline graph) is avoided by keeping LIVE_GRAPH strictly
+observational: it records flow counts and timestamps only. Anomaly
+verdicts and risk scores are not attack labels, and never populate
+attack-specific context fields.
 """
 
 from __future__ import annotations
@@ -26,12 +26,9 @@ from datetime import UTC, datetime
 
 @dataclass
 class LiveGraphContext:
-    edge_attack_ratio: float | None = None
-    edge_attack_flow_count: int | None = None
     edge_flow_count: int | None = None
     edge_first_seen: str | None = None
     edge_last_seen: str | None = None
-    edge_attack_label_count: int | None = None  # always 0 here -- live traffic has no ground-truth label history
 
     def is_empty(self) -> bool:
         return self.edge_flow_count is None
@@ -40,7 +37,6 @@ class LiveGraphContext:
 @dataclass
 class _LiveEdgeStats:
     flow_count: int = 0
-    flagged_flow_count: int = 0
     unique_source_ports: set[int] = field(default_factory=set)
     unique_destination_ports: set[int] = field(default_factory=set)
     protocols_seen: set[int] = field(default_factory=set)
@@ -69,7 +65,6 @@ class LiveGraph:
         dst_port: int | None,
         protocol: int,
         timestamp: float,
-        is_flagged: bool,
     ) -> None:
         with self._lock:
             key = (src_ip, dst_ip)
@@ -78,8 +73,6 @@ class LiveGraph:
                 stats = _LiveEdgeStats(first_seen=timestamp, last_seen=timestamp)
                 self._edges[key] = stats
             stats.flow_count += 1
-            if is_flagged:
-                stats.flagged_flow_count += 1
             if src_port is not None:
                 stats.unique_source_ports.add(src_port)
             if dst_port is not None:
@@ -94,14 +87,10 @@ class LiveGraph:
             stats = self._edges.get((src_ip, dst_ip))
             if stats is None:
                 return LiveGraphContext()
-            ratio = stats.flagged_flow_count / stats.flow_count if stats.flow_count else 0.0
             return LiveGraphContext(
-                edge_attack_ratio=ratio,
-                edge_attack_flow_count=stats.flagged_flow_count,
                 edge_flow_count=stats.flow_count,
                 edge_first_seen=datetime.fromtimestamp(stats.first_seen, tz=UTC).isoformat(),
                 edge_last_seen=datetime.fromtimestamp(stats.last_seen, tz=UTC).isoformat(),
-                edge_attack_label_count=0,
             )
 
     def cleanup(self, now_ts: float) -> int:
