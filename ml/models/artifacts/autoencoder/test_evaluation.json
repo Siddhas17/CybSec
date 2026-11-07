@@ -1,0 +1,26 @@
+{
+  "threshold": 0.10612511560320839,
+  "tp": 37458,
+  "tn": 298701,
+  "fp": 15558,
+  "fn": 26403,
+  "precision": 0.7065414214576732,
+  "recall": 0.5865551745196599,
+  "f1": 0.6409815447008393,
+  "false_positive_rate": 0.049506935362233065,
+  "roc_auc": 0.9160123788792753,
+  "pr_auc": 0.7409978475170916,
+  "positive_class_definition": "1 = ATTACK (any non-BENIGN canonical_label), 0 = BENIGN",
+  "benign_test_error_stats": {
+    "count": 314259,
+    "mean": 0.14095498621463776,
+    "median": 0.006120502948760986,
+    "std": 48.744850158691406
+  },
+  "attack_test_error_stats": {
+    "count": 63861,
+    "mean": 0.5744909644126892,
+    "median": 0.34530746936798096,
+    "std": 1.761433482170105
+  }
+}

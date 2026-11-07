@@ -1,0 +1,58 @@
+{
+  "selected_strategy": "percentile",
+  "selected_threshold": 0.10612511560320839,
+  "selection_rationale": "percentile (95.0th of BENIGN validation reconstruction error) chosen as the primary strategy because the model's purpose is learning normal behavior and flagging deviation from it, per the project's stated preference. Other strategies computed for comparison below.",
+  "benign_validation_error_stats": {
+    "count": 314259,
+    "mean": 0.3257434368133545,
+    "std": 156.13543701171875,
+    "min": 0.00013132221647538245,
+    "max": 87376.8125
+  },
+  "candidate_strategies": {
+    "percentile": {
+      "threshold": 0.10612511560320839,
+      "tp": 37344,
+      "tn": 298546,
+      "fp": 15713,
+      "fn": 26517,
+      "precision": 0.7038468062649603,
+      "recall": 0.5847700474467985,
+      "f1": 0.638806685027113,
+      "false_positive_rate": 0.050000159104432965
+    },
+    "mean_std": {
+      "threshold": 468.7320544719696,
+      "tp": 3,
+      "tn": 314256,
+      "fp": 3,
+      "fn": 63858,
+      "precision": 0.5,
+      "recall": 4.697702823319397e-05,
+      "f1": 9.394522993095025e-05,
+      "false_positive_rate": 9.546265978062681e-06
+    },
+    "roc": {
+      "threshold": 0.013266854919493198,
+      "tp": 60881,
+      "tn": 223965,
+      "fp": 90294,
+      "fn": 2980,
+      "precision": 0.40271870348933353,
+      "recall": 0.9533361519550273,
+      "f1": 0.5662400714299001,
+      "false_positive_rate": 0.28732351340773055
+    },
+    "pr": {
+      "threshold": 0.13659384846687317,
+      "tp": 36357,
+      "tn": 301045,
+      "fp": 13214,
+      "fn": 27504,
+      "precision": 0.7334328538863448,
+      "recall": 0.5693146051580777,
+      "f1": 0.6410360392129205,
+      "false_positive_rate": 0.042048119544706754
+    }
+  }
+}

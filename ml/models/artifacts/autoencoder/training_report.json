@@ -1,0 +1,18 @@
+{
+  "train_rows": 1764558,
+  "val_rows": 378120,
+  "benign_training_set": {
+    "total_training_rows": 1764558,
+    "benign_training_rows": 1466539,
+    "attack_rows_excluded": 298019,
+    "final_training_matrix_shape": [
+      1466539,
+      67
+    ]
+  },
+  "epochs_run": 15,
+  "max_epochs": 100,
+  "training_seconds": 96.23,
+  "final_train_loss": 0.03920876610320938,
+  "best_val_loss": 0.32574331760406494
+}

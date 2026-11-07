@@ -1,0 +1,23 @@
+{
+  "version": "risk-engine-v1",
+  "weights": {
+    "anomaly_severity": 0.4,
+    "edge_attack_ratio": 0.25,
+    "attack_activity": 0.15,
+    "temporal_persistence": 0.1,
+    "attack_context": 0.1
+  },
+  "anomaly_threshold": 0.10612511560320839,
+  "attack_activity_scale": 166948.7,
+  "temporal_scale_hours": 101.28,
+  "attack_label_cap": 3,
+  "repeated_attack_edge_ratio": 0.7,
+  "repeated_attack_min_flows": 10,
+  "repeated_attack_bonus": 0.5,
+  "high_anomaly_severity": 0.9,
+  "high_anomaly_bonus": 0.5,
+  "isolated_max_attack_flows": 1,
+  "isolated_max_total_flows": 2,
+  "isolated_max_anomaly_severity": 0.5,
+  "isolated_penalty": 0.5
+}

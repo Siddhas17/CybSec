@@ -1,0 +1,23 @@
+{
+  "positive_class_definition": "1 = ATTACK (any non-BENIGN canonical_label), 0 = BENIGN",
+  "k": 5,
+  "weights": "distance",
+  "tp": 63220,
+  "tn": 313357,
+  "fp": 902,
+  "fn": 641,
+  "accuracy": 0.9959192848831059,
+  "primary_averaging_method": "weighted",
+  "note_on_averaging": "Both macro and weighted averaging are reported. Weighted is treated as primary because class support (BENIGN vs ATTACK) is highly imbalanced here -- see class_distribution -- so macro-averaged precision/recall/F1 can look worse or better than performance on the majority class alone would suggest; both are shown rather than picking one silently.",
+  "precision_weighted": 0.9959275855836351,
+  "recall_weighted": 0.9959192848831059,
+  "f1_weighted": 0.9959225982162035,
+  "precision_macro": 0.9919458254090696,
+  "recall_macro": 0.993546165498385,
+  "f1_macro": 0.9927438549940278,
+  "roc_auc": 0.9980883393473546,
+  "pr_auc": 0.992711302179521,
+  "training_time_seconds": 0.7051,
+  "inference_time_seconds": 4012.7433,
+  "inference_time_per_sample_ms": 10.612354
+}

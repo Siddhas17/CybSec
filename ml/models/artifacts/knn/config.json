@@ -1,0 +1,13 @@
+{
+  "n_neighbors": 5,
+  "weights": "distance",
+  "metric": "minkowski",
+  "p": 2,
+  "n_jobs": -1,
+  "seed": 42,
+  "feature_count": 67,
+  "python_version": "3.12.13 | packaged by conda-forge | (main, Aug 11 2026, 10:27:28) [GCC 14.4.0]",
+  "sklearn_version": "1.9.0",
+  "run_id": "48fe0cdd03384ac787f10f4609bb50e6",
+  "trained_at": "2026-09-03T17:58:49.100318+00:00"
+}

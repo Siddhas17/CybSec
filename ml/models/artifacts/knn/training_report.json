@@ -1,0 +1,23 @@
+{
+  "run_id": "48fe0cdd03384ac787f10f4609bb50e6",
+  "trained_at": "2026-09-03T17:58:49.100318+00:00",
+  "train_rows": 1764558,
+  "test_rows": 378120,
+  "feature_count": 67,
+  "train_class_distribution": {
+    "benign_count": 1466539,
+    "attack_count": 298019,
+    "total_count": 1764558,
+    "benign_pct": 83.1108,
+    "attack_pct": 16.8892
+  },
+  "test_class_distribution": {
+    "benign_count": 314259,
+    "attack_count": 63861,
+    "total_count": 378120,
+    "benign_pct": 83.1109,
+    "attack_pct": 16.8891
+  },
+  "training_seconds": 0.71,
+  "inference_seconds": 4012.74
+}
