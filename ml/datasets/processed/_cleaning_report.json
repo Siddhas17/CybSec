@@ -1,0 +1,369 @@
+{
+  "files_loaded": [
+    "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+    "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
+    "Friday-WorkingHours-Morning.pcap_ISCX.csv",
+    "Monday-WorkingHours.pcap_ISCX.csv",
+    "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv",
+    "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv",
+    "Tuesday-WorkingHours.pcap_ISCX.csv",
+    "Wednesday-workingHours.pcap_ISCX.csv"
+  ],
+  "rows_before_dedup": 2830743,
+  "exact_duplicate_rows": 308381,
+  "rows_after_dedup": 2522362,
+  "inf_counts_before": {
+    "Flow Bytes/s": 1211,
+    "Flow Packets/s": 1564
+  },
+  "nan_rows_after_inf_conversion": 1564,
+  "nan_row_pct": 0.062005,
+  "nan_by_label": {
+    "BENIGN": 1427,
+    "PortScan": 125,
+    "Bot": 5,
+    "DoS Hulk": 3,
+    "DDoS": 2,
+    "FTP-Patator": 2
+  },
+  "nan_by_file": {
+    "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv": 335,
+    "Monday-WorkingHours.pcap_ISCX.csv": 323,
+    "Wednesday-workingHours.pcap_ISCX.csv": 282,
+    "Tuesday-WorkingHours.pcap_ISCX.csv": 214,
+    "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv": 174,
+    "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv": 110,
+    "Friday-WorkingHours-Morning.pcap_ISCX.csv": 96,
+    "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv": 30
+  },
+  "inf_nan_rows_dropped": true,
+  "rows_after_inf_nan_handling": 2520798,
+  "label_distribution_before": {
+    "BENIGN": 2273097,
+    "DoS Hulk": 231073,
+    "PortScan": 158930,
+    "DDoS": 128027,
+    "DoS GoldenEye": 10293,
+    "FTP-Patator": 7938,
+    "SSH-Patator": 5897,
+    "DoS slowloris": 5796,
+    "DoS Slowhttptest": 5499,
+    "Bot": 1966,
+    "Web Attack \ufffd Brute Force": 1507,
+    "Web Attack \ufffd XSS": 652,
+    "Infiltration": 36,
+    "Web Attack \ufffd Sql Injection": 21,
+    "Heartbleed": 11
+  },
+  "label_distribution_after": {
+    "BENIGN": 2095057,
+    "DoS Hulk": 172846,
+    "DDoS": 128014,
+    "PortScan": 90694,
+    "DoS GoldenEye": 10286,
+    "FTP-Patator": 5931,
+    "DoS slowloris": 5385,
+    "DoS Slowhttptest": 5228,
+    "SSH-Patator": 3219,
+    "Bot": 1948,
+    "Web Attack - Brute Force": 1470,
+    "Web Attack - XSS": 652,
+    "Infiltration": 36,
+    "Web Attack - Sql Injection": 21,
+    "Heartbleed": 11
+  },
+  "mojibake_mappings": {
+    "Web Attack \ufffd Brute Force": "Web Attack - Brute Force",
+    "Web Attack \ufffd XSS": "Web Attack - XSS",
+    "Web Attack \ufffd Sql Injection": "Web Attack - Sql Injection"
+  },
+  "split_sizes": {
+    "train": 1764558,
+    "val": 378120,
+    "test": 378120
+  },
+  "split_label_distribution": {
+    "train": {
+      "BENIGN": 1466539,
+      "DoS Hulk": 120992,
+      "DDoS": 89610,
+      "PortScan": 63486,
+      "DoS GoldenEye": 7200,
+      "FTP-Patator": 4152,
+      "DoS slowloris": 3769,
+      "DoS Slowhttptest": 3660,
+      "SSH-Patator": 2253,
+      "Bot": 1364,
+      "Web Attack - Brute Force": 1029,
+      "Web Attack - XSS": 456,
+      "Infiltration": 25,
+      "Web Attack - Sql Injection": 15,
+      "Heartbleed": 8
+    },
+    "val": {
+      "BENIGN": 314259,
+      "DoS Hulk": 25927,
+      "DDoS": 19202,
+      "PortScan": 13604,
+      "DoS GoldenEye": 1543,
+      "FTP-Patator": 889,
+      "DoS slowloris": 808,
+      "DoS Slowhttptest": 784,
+      "SSH-Patator": 483,
+      "Bot": 292,
+      "Web Attack - Brute Force": 221,
+      "Web Attack - XSS": 98,
+      "Infiltration": 5,
+      "Web Attack - Sql Injection": 3,
+      "Heartbleed": 2
+    },
+    "test": {
+      "BENIGN": 314259,
+      "DoS Hulk": 25927,
+      "DDoS": 19202,
+      "PortScan": 13604,
+      "DoS GoldenEye": 1543,
+      "FTP-Patator": 890,
+      "DoS slowloris": 808,
+      "DoS Slowhttptest": 784,
+      "SSH-Patator": 483,
+      "Bot": 292,
+      "Web Attack - Brute Force": 220,
+      "Web Attack - XSS": 98,
+      "Infiltration": 6,
+      "Web Attack - Sql Injection": 3,
+      "Heartbleed": 1
+    }
+  },
+  "zero_variance_columns": {
+    "Bwd PSH Flags": 0.0,
+    "Bwd URG Flags": 0.0,
+    "Fwd Avg Bytes/Bulk": 0.0,
+    "Fwd Avg Packets/Bulk": 0.0,
+    "Fwd Avg Bulk Rate": 0.0,
+    "Bwd Avg Bytes/Bulk": 0.0,
+    "Bwd Avg Packets/Bulk": 0.0,
+    "Bwd Avg Bulk Rate": 0.0
+  },
+  "exact_duplicate_feature_pairs": [
+    [
+      "Total Fwd Packets",
+      "Subflow Fwd Packets"
+    ],
+    [
+      "Total Backward Packets",
+      "Subflow Bwd Packets"
+    ],
+    [
+      "Fwd PSH Flags",
+      "SYN Flag Count"
+    ],
+    [
+      "Fwd URG Flags",
+      "CWE Flag Count"
+    ]
+  ],
+  "redundant_features_dropped": [
+    "Subflow Fwd Packets",
+    "Subflow Bwd Packets"
+  ],
+  "redundant_features_kept": [
+    [
+      "Fwd PSH Flags",
+      "SYN Flag Count"
+    ],
+    [
+      "Fwd URG Flags",
+      "CWE Flag Count"
+    ]
+  ],
+  "near_duplicate_feature_pairs": [
+    {
+      "columns": [
+        "Total Fwd Packets",
+        "Total Backward Packets"
+      ],
+      "correlation": 0.99955755,
+      "mismatch_count": 1229939,
+      "mismatch_pct": 48.791652
+    },
+    {
+      "columns": [
+        "Total Fwd Packets",
+        "Subflow Bwd Packets"
+      ],
+      "correlation": 0.99955755,
+      "mismatch_count": 1229939,
+      "mismatch_pct": 48.791652
+    },
+    {
+      "columns": [
+        "Total Backward Packets",
+        "Bwd Header Length"
+      ],
+      "correlation": 0.99941352,
+      "mismatch_count": 2209406,
+      "mismatch_pct": 87.647086
+    },
+    {
+      "columns": [
+        "Total Backward Packets",
+        "Subflow Fwd Packets"
+      ],
+      "correlation": 0.99955755,
+      "mismatch_count": 1229939,
+      "mismatch_pct": 48.791652
+    },
+    {
+      "columns": [
+        "Total Length of Fwd Packets",
+        "Subflow Fwd Bytes"
+      ],
+      "correlation": 1.0,
+      "mismatch_count": 1,
+      "mismatch_pct": 4e-05
+    },
+    {
+      "columns": [
+        "Total Length of Bwd Packets",
+        "Subflow Bwd Bytes"
+      ],
+      "correlation": 0.99999995,
+      "mismatch_count": 146,
+      "mismatch_pct": 0.005792
+    },
+    {
+      "columns": [
+        "Fwd Packet Length Mean",
+        "Avg Fwd Segment Size"
+      ],
+      "correlation": 1.0,
+      "mismatch_count": 1,
+      "mismatch_pct": 4e-05
+    },
+    {
+      "columns": [
+        "Bwd Packet Length Mean",
+        "Avg Bwd Segment Size"
+      ],
+      "correlation": 1.0,
+      "mismatch_count": 62,
+      "mismatch_pct": 0.00246
+    },
+    {
+      "columns": [
+        "Fwd Header Length",
+        "min_seg_size_forward"
+      ],
+      "correlation": 0.99999982,
+      "mismatch_count": 1905524,
+      "mismatch_pct": 75.592094
+    },
+    {
+      "columns": [
+        "Bwd Header Length",
+        "Subflow Bwd Packets"
+      ],
+      "correlation": 0.99941352,
+      "mismatch_count": 2209406,
+      "mismatch_pct": 87.647086
+    },
+    {
+      "columns": [
+        "RST Flag Count",
+        "ECE Flag Count"
+      ],
+      "correlation": 1.0,
+      "mismatch_count": 3,
+      "mismatch_pct": 0.000119
+    },
+    {
+      "columns": [
+        "Subflow Fwd Packets",
+        "Subflow Bwd Packets"
+      ],
+      "correlation": 0.99955755,
+      "mismatch_count": 1229939,
+      "mismatch_pct": 48.791652
+    }
+  ],
+  "model_feature_columns": [
+    "Destination Port",
+    "Flow Duration",
+    "Total Fwd Packets",
+    "Total Backward Packets",
+    "Total Length of Fwd Packets",
+    "Total Length of Bwd Packets",
+    "Fwd Packet Length Max",
+    "Fwd Packet Length Min",
+    "Fwd Packet Length Mean",
+    "Fwd Packet Length Std",
+    "Bwd Packet Length Max",
+    "Bwd Packet Length Min",
+    "Bwd Packet Length Mean",
+    "Bwd Packet Length Std",
+    "Flow Bytes/s",
+    "Flow Packets/s",
+    "Flow IAT Mean",
+    "Flow IAT Std",
+    "Flow IAT Max",
+    "Flow IAT Min",
+    "Fwd IAT Total",
+    "Fwd IAT Mean",
+    "Fwd IAT Std",
+    "Fwd IAT Max",
+    "Fwd IAT Min",
+    "Bwd IAT Total",
+    "Bwd IAT Mean",
+    "Bwd IAT Std",
+    "Bwd IAT Max",
+    "Bwd IAT Min",
+    "Fwd PSH Flags",
+    "Fwd URG Flags",
+    "Fwd Header Length",
+    "Bwd Header Length",
+    "Fwd Packets/s",
+    "Bwd Packets/s",
+    "Min Packet Length",
+    "Max Packet Length",
+    "Packet Length Mean",
+    "Packet Length Std",
+    "Packet Length Variance",
+    "FIN Flag Count",
+    "SYN Flag Count",
+    "RST Flag Count",
+    "PSH Flag Count",
+    "ACK Flag Count",
+    "URG Flag Count",
+    "CWE Flag Count",
+    "ECE Flag Count",
+    "Down/Up Ratio",
+    "Average Packet Size",
+    "Avg Fwd Segment Size",
+    "Avg Bwd Segment Size",
+    "Subflow Fwd Bytes",
+    "Subflow Bwd Bytes",
+    "Init_Win_bytes_forward",
+    "Init_Win_bytes_backward",
+    "act_data_pkt_fwd",
+    "min_seg_size_forward",
+    "Active Mean",
+    "Active Std",
+    "Active Max",
+    "Active Min",
+    "Idle Mean",
+    "Idle Std",
+    "Idle Max",
+    "Idle Min"
+  ],
+  "metadata_columns": [
+    "Label",
+    "canonical_label",
+    "source_file",
+    "Destination Port"
+  ],
+  "questionable_fields": [
+    "'Destination Port' decision (2026-08-18): kept as a scaled numeric model feature (available from live flow telemetry, carries service/attack-behavior signal) and also duplicated, unscaled, into metadata for the future attack-graph module. Treating a port number as a continuous scaled value is a simplification with no ordinal meaning between adjacent port numbers \u2014 accepted for Phase 1. CICIDS2017 attacks in this capture often target one fixed port (e.g. FTP-Patator -> 21, SSH-Patator -> 22), so a model could shortcut-learn on port number instead of behavioral flow features; revisit if that turns out to matter during autoencoder evaluation.",
+    "This CICIDS2017 MachineLearningCSV variant has no Source IP / Destination IP / Flow ID / Timestamp columns at all (already stripped upstream) \u2014 so no raw-identifier exclusion was needed for the autoencoder, but it also means the attack-graph module (docs/architecture.md) cannot build host-level topology from this dataset alone; it will need a different data source or the IP-bearing GeneratedLabelledFlows CICIDS2017 variant."
+  ]
+}

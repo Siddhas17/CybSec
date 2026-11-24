@@ -14,6 +14,7 @@ import { ModelEvaluation } from "./pages/ModelEvaluation";
 import { Reports } from "./pages/Reports";
 import { DatasetManagement } from "./pages/DatasetManagement";
 import { Victims } from "./pages/Victims";
+import { DestinationAnalysis } from "./pages/DestinationAnalysis";
 import { SystemHealth } from "./pages/SystemHealth";
 import { Prevention } from "./pages/Prevention";
 import { Agents } from "./pages/Agents";
@@ -44,7 +45,8 @@ export default function App() {
         <Route path="/threats/:eventId" element={<Protected><ThreatDetails /></Protected>} />
         <Route path="/attack-graph" element={<Protected><AttackGraph /></Protected>} />
         <Route path="/analytics" element={<Protected><Analytics /></Protected>} />
-        <Route path="/victims" element={<Protected><Victims /></Protected>} />
+        <Route path="/victims" element={<AdminProtected><Victims /></AdminProtected>} />
+        <Route path="/destination-analysis" element={<Protected><DestinationAnalysis /></Protected>} />
         <Route path="/model-info" element={<Protected><ModelInfo /></Protected>} />
         <Route path="/model-evaluation" element={<AdminProtected><ModelEvaluation /></AdminProtected>} />
         <Route path="/datasets" element={<AdminProtected><DatasetManagement /></AdminProtected>} />
